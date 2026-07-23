@@ -1,0 +1,6 @@
+# Package index
+
+## All functions
+
+- [`crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/crc_fit.md)
+  : Fit a Capture-Recapture Model
