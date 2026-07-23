@@ -1,2 +1,5 @@
 ^misclassCRC\.Rproj$
 ^\.Rproj\.user$
+^\.github$
+^_pkgdown\.yml$
+^docs$

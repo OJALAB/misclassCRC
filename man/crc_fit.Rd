@@ -13,7 +13,7 @@ crc_fit(
   outcome_dist = c("ztnegbin", "ztpois"),
   misclass = NULL,
   latent_classes = 1L,
-  control = crc_control()
+  control = NULL
 )
 }
 \arguments{
@@ -38,7 +38,7 @@ Currently, \code{"ztnegbin"} and \code{"ztpois"} are supported.}
 
 \item{latent_classes}{A positive integer giving the number of latent classes.}
 
-\item{control}{Numerical controls created by \verb{[crc_control()]}.}
+\item{control}{An optional control object reserved for future use.}
 }
 \value{
 An object of class \code{"crcfit"}.

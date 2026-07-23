@@ -1,0 +1,10 @@
+url: https://ojalab.ue.poznan.pl/misclassCRC/
+
+template:
+  bootstrap: 5
+  light-switch: true
+  math-rendering: katex
+  theme: github-light
+  theme-dark: github-dark
+  bslib:
+    primary: "#2c3e50"

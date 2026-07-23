@@ -13,7 +13,7 @@
 #' Currently, `"ztnegbin"` and `"ztpois"` are supported.
 #' @param misclass A specification of misclassification mechanisms.
 #' @param latent_classes A positive integer giving the number of latent classes.
-#' @param control Numerical controls created by `[crc_control()]`.
+#' @param control An optional control object reserved for future use.
 #' 
 #' @return 
 #' An object of class `"crcfit"`.
@@ -28,7 +28,7 @@ crc_fit <- function(
   outcome_dist = c("ztnegbin", "ztpois"),
   misclass = NULL,
   latent_classes = 1L,
-  control = crc_control()
+  control = NULL
 ) {
 
   # Validate input data
