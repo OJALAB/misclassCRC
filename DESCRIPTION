@@ -1,0 +1,22 @@
+Package: misclassCRC
+Title: Capture-Recapture Models with Latent Classes and Error Correction
+Version: 0.0.0.9000
+Authors@R: 
+    person(
+        given = "Adam",
+        family = "Struzik",
+        role = c("aut", "cre"),
+        email = "adastr5@st.amu.edu.pl",
+        comment = c(ORCID = "0009-0002-2547-482X")
+    )
+Description: TODO
+License: GPL-3
+Encoding: UTF-8
+URL: https://github.com/OJALAB/misclassCRC
+BugReports: https://github.com/OJALAB/misclassCRC/issues
+Roxygen: list(markdown = TRUE)
+Depends: 
+    R (>= 4.1.0)
+LazyData: true
+VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
