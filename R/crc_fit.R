@@ -1,7 +1,7 @@
 #' Fit a Capture-Recapture Model
 #' 
 #' @param data A `data.frame` or `data.table` with one row per observed unit.
-#' @param captures A one-sided formula identifying binary capture indicators, e.g,
+#' @param captures A one-sided formula identifying binary capture indicators, e.g.,
 #' `~ source_1 + source_2 + source_3`.
 #' @param capture_formula A one-sided formula specifying the log-linear capture model.
 #' The special term `.latent` denotes the latent class.
