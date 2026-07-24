@@ -19,7 +19,7 @@ crc_fit(
 \arguments{
 \item{data}{A \code{data.frame} or \code{data.table} with one row per observed unit.}
 
-\item{captures}{A one-sided formula identifying binary capture indicators, e.g,
+\item{captures}{A one-sided formula identifying binary capture indicators, e.g.,
 \code{~ source_1 + source_2 + source_3}.}
 
 \item{capture_formula}{A one-sided formula specifying the log-linear capture model.

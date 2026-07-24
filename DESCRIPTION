@@ -10,7 +10,7 @@ Authors@R:
         comment = c(ORCID = "0009-0002-2547-482X")
     )
 Description: An R package for capture-recapture models with latent classes
-    and error correction.
+    and error correction. To be extended.
 License: GPL-3
 Encoding: UTF-8
 URL: https://ojalab.ue.poznan.pl/misclassCRC/,
@@ -20,3 +20,5 @@ Roxygen: list(markdown = TRUE)
 Depends: 
     R (>= 4.1.0)
 Config/roxygen2/version: 8.0.0
+Imports: 
+    data.table

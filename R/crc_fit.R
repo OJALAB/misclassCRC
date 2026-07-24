@@ -31,7 +31,13 @@ crc_fit <- function(
   control = NULL
 ) {
 
-  # Validate input data
+  call <- match.call()
+
+  outcome_dist <- match.arg(
+    outcome_dist,
+    c("ztnegbin", "ztpois")
+  )
+
   validate_crc_input(
     data = data,
     captures = captures,
@@ -44,11 +50,39 @@ crc_fit <- function(
     control = control
   )
 
-  outcome_dist <- match.arg(
-    outcome_dist,
-    c("ztnegbin", "ztpois")
+  parsed_captures <- parse_captures(
+    captures = captures,
+    data = data
   )
 
-  stop("Model fitting is not implemented yet.", call. = FALSE)
+  parsed_outcome <- parse_outcome(
+    outcome = outcome,
+    data = data
+  )
+
+  parsed_capture_formula <- parse_capture_formula(
+    capture_formula = capture_formula,
+    data = data,
+    capture_names = parsed_captures$names,
+    latent_classes = latent_classes
+  )
+
+  structure(
+    list(
+      call = call,
+      data = data,
+      captures = parsed_captures,
+      capture_model = parsed_capture_formula,
+      outcome = parsed_outcome,
+      outcome_formula = outcome_formula,
+      outcome_dist = outcome_dist,
+      misclass = misclass,
+      latent_classes = latent_classes,
+      control = control,
+      fitted = FALSE
+    ),
+
+    class = c("crcfit_unfitted", "crcfit")
+  )
 
 }

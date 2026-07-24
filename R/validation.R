@@ -1,3 +1,4 @@
+#' @noRd
 validate_crc_input <- function(
   data,
   captures,
