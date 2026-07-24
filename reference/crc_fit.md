@@ -26,7 +26,7 @@ crc_fit(
 
 - captures:
 
-  A one-sided formula identifying binary capture indicators, e.g,
+  A one-sided formula identifying binary capture indicators, e.g.,
   `~ source_1 + source_2 + source_3`.
 
 - capture_formula:
