@@ -67,3 +67,55 @@ validate_crc_input <- function(
   invisible(TRUE)
 
 }
+
+#' @noRd
+validate_categorical_variables <- function(
+  variables,
+  data,
+  context
+) {
+
+  variables_with_missing <- variables[
+    vapply(
+      variables,
+      function(variable) anyNA(data[[variable]]),
+      logical(1L)
+    )
+  ]
+
+  if (length(variables_with_missing) > 0L) {
+    stop(
+      "The following variables in `",
+      context,
+      "` contain missing values: ",
+      paste0("`", variables_with_missing, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  non_categorical_variables <- variables[
+    !vapply(
+      variables,
+      function(variable) {
+        is.factor(data[[variable]]) ||
+          is.character(data[[variable]])
+      },
+      logical(1L)
+    )
+  ]
+
+  if (length(non_categorical_variables) > 0L) {
+    stop(
+      "The following variables in `",
+      context,
+      "` must be factor or character variables: ",
+      paste0("`", non_categorical_variables, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  invisible(TRUE)
+  
+}

@@ -339,6 +339,17 @@ parse_capture_formula <- function(
     )
   }
 
+  categorical_variables <- setdiff(
+    ordinary_variables,
+    capture_names
+  )
+
+  validate_categorical_variables(
+    variables = categorical_variables,
+    data = data,
+    context = "capture_formula"
+  )
+
   term_components <- unique(unlist(
     strsplit(term_labels, ":", fixed = TRUE)
   ))
@@ -471,6 +482,498 @@ parse_capture_formula <- function(
       uses_latent = uses_latent
     ),
     class = "crc_capture_formula"
+  )
+
+}
+
+#' @importFrom stats terms
+#' 
+#' @noRd
+parse_outcome_formula <- function(
+  outcome_formula,
+  data,
+  outcome,
+  latent_classes
+) {
+
+  if (is.null(outcome)) {
+    if (!is.null(outcome_formula)) {
+      stop(
+        "`outcome_formula` must be `NULL` when `outcome` is `NULL`.",
+        call. = FALSE
+      )
+    }
+    return(NULL)
+  }
+
+  if (
+    !inherits(outcome_formula, "formula") ||
+
+      length(outcome_formula) != 2L
+  ) {
+    stop(
+      "`outcome_formula` must be a one-sided formula.",
+      call. = FALSE
+    )
+  }
+
+  terms_object <- terms(outcome_formula)
+  term_labels <- attr(terms_object, "term.labels")
+  
+  if (attr(terms_object, "intercept") != 1L) {
+    stop(
+      "`outcome_formula` must include an intercept.",
+      call. = FALSE
+    )
+  }
+  
+  formula_variables <- all.vars(outcome_formula)
+  ordinary_variables <- setdiff(formula_variables, ".latent")
+
+  missing_variables <- setdiff(
+    ordinary_variables,
+    names(data)
+  )
+
+  if (length(missing_variables) > 0L) {
+    stop(
+      "The following variables in `outcome_formula` are not present in `data`: ",
+      paste0("`", missing_variables, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  validate_categorical_variables(
+    variables = ordinary_variables,
+    data = data,
+    context = "outcome_formula"
+  )
+
+  term_components <- unique(unlist(
+    strsplit(term_labels, ":", fixed = TRUE)
+  ))
+
+  invalid_components <- setdiff(
+    term_components,
+    formula_variables
+  )
+
+  if (length(invalid_components) > 0L) {
+    stop(
+      "`outcome_formula` may contain only untransformed variable names ",
+      "and `.latent`. Invalid terms: ",
+      paste0("`", invalid_components, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  uses_latent <- ".latent" %in% formula_variables
+
+  if (latent_classes == 1L && uses_latent) {
+    stop(
+      "`.latent` cannot be used in `outcome_formula` when ",
+      "`latent_classes = 1`.",
+      call. = FALSE
+    )
+  }
+
+  main_effects <- term_labels[
+    !grepl(":", term_labels, fixed = TRUE)
+  ]
+
+  interaction_terms <- term_labels[
+    grepl(":", term_labels, fixed = TRUE)
+  ]
+
+  for (term in interaction_terms) {
+    components <- strsplit(
+      term,
+
+      split = ":",
+
+      fixed = TRUE
+    )[[1L]]
+
+    missing_component_effects <- setdiff(
+      components,
+
+      main_effects
+    )
+
+    if (length(missing_component_effects) > 0L) {
+      stop(
+        "All components of an interaction must also appear as main effects. ",
+        "The term `",
+        term,
+        "` is missing the following main effects: ",
+        paste0(
+          "`",
+          missing_component_effects,
+          "`",
+          collapse = ", "
+        ),
+        ".",
+        call. = FALSE
+      )
+    }
+  }
+
+  structure(
+    list(
+      formula = outcome_formula,
+      terms = terms_object,
+      term_labels = term_labels,
+      variables = ordinary_variables,
+      uses_latent = uses_latent
+    ),
+    class = "crc_outcome_formula"
+  )
+  
+}
+
+#' @import data.table
+#' @importFrom stats terms
+#' 
+#' @noRd
+parse_misclass <- function(
+  misclass,
+  data,
+  capture_names
+) {
+
+  if (is.null(misclass)) {
+    return(NULL)
+  }
+
+  if (
+    !is.list(misclass) ||
+      is.null(names(misclass)) ||
+      anyNA(names(misclass)) ||
+      any(!nzchar(names(misclass))) ||
+      anyDuplicated(names(misclass)) > 0L
+  ) {
+    stop(
+      "`misclass` must be a named list of misclassification specifications.",
+      call. = FALSE
+    )
+  }
+
+  variables <- names(misclass)
+
+  missing_variables <- setdiff(
+    variables,
+    names(data)
+  )
+
+  if (length(missing_variables) > 0L) {
+    stop(
+      "The following variables specified in `misclass` are not present in `data`: ",
+      paste0("`", missing_variables, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  parsed <- vector(
+    mode = "list",
+    length = length(misclass)
+  )
+
+  names(parsed) <- variables
+
+  for (variable in variables) {
+
+    spec <- misclass[[variable]]
+
+    if (!is.list(spec)) {
+      stop(
+        "The misclassification specification for `",
+        variable,
+        "` must be a list.",
+        call. = FALSE
+      )
+    }
+
+    if (
+      is.null(names(spec)) ||
+        anyNA(names(spec)) ||
+        any(!nzchar(names(spec))) ||
+        anyDuplicated(names(spec)) > 0L
+    ) {
+      stop(
+        "The misclassification specification for `",
+        variable,
+        "` must have unique, non-empty element names.",
+        call. = FALSE
+      )
+    }
+
+    allowed_names <- c(
+      "matrix",
+      "true_if"
+    )
+
+    unknown_names <- setdiff(
+      names(spec),
+      allowed_names
+    )
+
+    if (length(unknown_names) > 0L) {
+      stop(
+        "Unknown elements in the misclassification specification for `",
+        variable,
+        "`: ",
+        paste0("`", unknown_names, "`", collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+
+    if (!"matrix" %in% names(spec)) {
+      stop(
+        "The misclassification specification for `",
+        variable,
+        "` must contain `matrix`.",
+        call. = FALSE
+      )
+    }
+
+    Pi <- spec$matrix
+
+    if (
+      !is.matrix(Pi) ||
+        !is.numeric(Pi)
+    ) {
+      stop(
+        "The misclassification matrix for `",
+        variable,
+        "` must be a numeric matrix.",
+        call. = FALSE
+      )
+    }
+
+    if (nrow(Pi) != ncol(Pi)) {
+      stop(
+        "The misclassification matrix for `",
+        variable,
+        "` must be square.",
+        call. = FALSE
+      )
+    }
+
+    if (
+      anyNA(Pi) ||
+        any(!is.finite(Pi)) ||
+        any(Pi < 0)
+    ) {
+      stop(
+        "The misclassification matrix for `",
+        variable,
+        "` must contain finite non-negative values.",
+        call. = FALSE
+      )
+    }
+
+    if (!all(abs(rowSums(Pi) - 1) < 1e-8)) {
+      stop(
+        "Rows of the misclassification matrix for `",
+        variable,
+        "` must sum to 1.",
+        call. = FALSE
+      )
+    }
+
+    if (
+      is.null(rownames(Pi)) ||
+        is.null(colnames(Pi))
+    ) {
+      stop(
+        "The misclassification matrix for `",
+        variable,
+        "` must have row and column names.",
+        call. = FALSE
+      )
+    }
+
+    if (
+      anyNA(rownames(Pi)) ||
+        anyNA(colnames(Pi)) ||
+        any(!nzchar(rownames(Pi))) ||
+        any(!nzchar(colnames(Pi)))
+    ) {
+      stop(
+        "Row and column names of the misclassification matrix for `",
+        variable,
+        "` must be non-missing and non-empty.",
+        call. = FALSE
+      )
+    }
+
+    if (
+      anyDuplicated(rownames(Pi)) > 0L ||
+        anyDuplicated(colnames(Pi)) > 0L
+    ) {
+      stop(
+        "Row and column names of the misclassification matrix for `",
+        variable,
+        "` must be unique.",
+        call. = FALSE
+      )
+    }
+
+    if (!identical(rownames(Pi), colnames(Pi))) {
+      stop(
+        "Row and column names of the misclassification matrix for `",
+        variable,
+        "` must contain the same category levels in the same order.",
+        call. = FALSE
+      )
+    }
+
+    observed_values <- data[[variable]]
+
+    if (
+      !is.factor(observed_values) &&
+        !is.character(observed_values)
+    ) {
+      stop(
+        "Misclassified variable `",
+        variable,
+        "` must be a factor or character variable.",
+        call. = FALSE
+      )
+    }
+
+    if (anyNA(observed_values)) {
+      stop(
+        "Misclassified variable `",
+        variable,
+        "` must not contain missing values.",
+        call. = FALSE
+      )
+    }
+
+    observed_levels <- unique(
+      as.character(observed_values)
+    )
+
+    unknown_levels <- setdiff(
+      observed_levels,
+      colnames(Pi)
+    )
+
+    if (length(unknown_levels) > 0L) {
+      stop(
+        "The following observed levels of `",
+        variable,
+        "` are not represented in the misclassification matrix: ",
+        paste0("`", unknown_levels, "`", collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+
+    true_if <- spec$true_if
+
+    if (is.null(true_if)) {
+
+      true_sources <- character(0L)
+
+      is_true <- rep(
+        FALSE,
+        nrow(data)
+      )
+
+    } else {
+
+      if (
+        !inherits(true_if, "formula") ||
+          length(true_if) != 2L
+      ) {
+        stop(
+          "`true_if` for `",
+          variable,
+          "` must be a one-sided formula.",
+          call. = FALSE
+        )
+      }
+
+      true_terms_object <- terms(true_if)
+      true_terms <- attr(
+        true_terms_object,
+        "term.labels"
+      )
+
+      true_sources <- all.vars(true_if)
+
+      if (
+        !identical(true_terms, true_sources) ||
+
+          attr(true_terms_object, "intercept") != 1L
+      ) {
+        stop(
+          "`true_if` for `",
+          variable,
+          "` must contain only capture-variable names joined with `+`.",
+          call. = FALSE
+        )
+      }
+
+      invalid_sources <- setdiff(
+        true_sources,
+        capture_names
+      )
+
+      if (length(invalid_sources) > 0L) {
+        stop(
+          "The following variables in `true_if` for `",
+          variable,
+          "` are not capture variables: ",
+          paste0("`", invalid_sources, "`", collapse = ", "),
+          ".",
+          call. = FALSE
+        )
+      }
+
+      if (length(true_sources) == 0L) {
+        stop(
+          "`true_if` for `",
+          variable,
+          "` must identify at least one capture source.",
+          call. = FALSE
+        )
+      }
+
+      true_data <- as.data.table(data)[
+        ,
+        true_sources,
+        with = FALSE
+      ]
+
+      is_true <- rowSums(
+        as.matrix(true_data)
+      ) > 0L
+
+    }
+
+    parsed[[variable]] <- list(
+      variable = variable,
+      matrix = Pi,
+      levels = rownames(Pi),
+      true_sources = true_sources,
+      is_true = is_true
+    )
+
+  }
+
+  structure(
+    list(
+      variables = variables,
+      specifications = parsed
+    ),
+    class = "crc_misclass"
   )
 
 }

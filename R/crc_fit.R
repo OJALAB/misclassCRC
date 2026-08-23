@@ -60,10 +60,23 @@ crc_fit <- function(
     data = data
   )
 
+  parsed_misclass <- parse_misclass(
+    misclass = misclass,
+    data = data,
+    capture_names = parsed_captures$names
+  )
+
   parsed_capture_formula <- parse_capture_formula(
     capture_formula = capture_formula,
     data = data,
     capture_names = parsed_captures$names,
+    latent_classes = latent_classes
+  )
+
+  parsed_outcome_formula <- parse_outcome_formula(
+    outcome_formula = outcome_formula,
+    data = data,
+    outcome = parsed_outcome,
     latent_classes = latent_classes
   )
 
@@ -74,15 +87,14 @@ crc_fit <- function(
       captures = parsed_captures,
       capture_model = parsed_capture_formula,
       outcome = parsed_outcome,
-      outcome_formula = outcome_formula,
+      outcome_model = parse_outcome_formula,
       outcome_dist = outcome_dist,
-      misclass = misclass,
+      misclass = parsed_misclass,
       latent_classes = latent_classes,
       control = control,
       fitted = FALSE
     ),
-
-    class = c("crcfit_unfitted", "crcfit")
+    class = c("crc_unfitted", "crcfit")
   )
 
 }
