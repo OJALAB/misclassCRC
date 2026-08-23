@@ -3,3 +3,4 @@
 **/*.quarto_ipynb
 /docs/
 README.html
+.DS_Store

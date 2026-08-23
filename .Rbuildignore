@@ -4,3 +4,8 @@
 ^_pkgdown\.yml$
 ^docs$
 ^README\.Rmd$
+^\.DS_Store$
+^documents$
+^AGENTS\.md$
+^submission-2026-IAOS-prize$
+^papers$
