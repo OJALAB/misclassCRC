@@ -1,0 +1,111 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{enumitem}
+
+\setcounter{page}{6}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist{nosep,leftmargin=1.6em}
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries CRC Package Interface Specification}\\[3pt]
+  {\large Model-matrix implementation addendum}
+\end{center}
+
+\section{Model-matrix infrastructure}
+
+The package now contains initial infrastructure for converting parsed model
+specifications into complete cell grids and observation-level latent states.
+The implementation remains separate from \texttt{crc\_fit()} until the
+remaining matrices and their alignment rules are defined.
+
+\subsection{Capture-model matrix}
+
+\texttt{build\_capture\_matrix()} constructs the Cartesian product of all
+capture histories, categorical levels used by the capture model, and latent
+classes. For misclassified variables, true-category levels and their ordering
+are obtained from the corresponding confusion matrices. The function returns:
+
+\begin{itemize}
+  \item \texttt{cells}, the complete capture-model cell grid;
+  \item \texttt{matrix}, the design matrix generated from the parsed terms;
+  \item \texttt{unobserved}, an indicator of all-zero capture histories.
+\end{itemize}
+
+With $J$ capture sources, $K$ latent classes, and categorical variables with
+$C_1,\ldots,C_p$ levels, the grid contains
+$2^J K\prod_{q=1}^p C_q$ rows.
+
+\subsection{Initial observation states}
+
+\texttt{build\_observation\_states()} repeats every observed unit once for
+each latent class. It retains the variables needed by the capture model,
+outcome model, and misclassification mechanisms. It also keeps aligned copies
+of the standardized outcome and observed values of misclassified variables.
+An observation identifier maps every expanded row back to its original unit.
+
+\subsection{Misclassified-variable expansion}
+
+\texttt{expand\_misclass\_states()} expands the current states over every
+possible true level of one misclassified variable. Each expanded row receives
+the contribution
+\[
+  \Pr(\widetilde G_j=h\mid G_j=g)
+\]
+from its confusion matrix. When \texttt{true\_if} applies, the observed
+category receives probability one and all other candidate categories receive
+probability zero.
+
+For several misclassified variables, separate confusion matrices are used and
+their contributions are multiplied. This corresponds to conditional
+independence of the misclassification mechanisms given their respective true
+categories. Dependent mechanisms may be supported in a future extension.
+These contributions are likelihood terms, not posterior probabilities, and
+must not be normalized at this stage.
+
+\newpage
+
+\section{Required next steps}
+
+The model-matrix work should continue in the following order.
+
+\begin{enumerate}
+  \item Add a small wrapper that calls
+  \texttt{expand\_misclass\_states()} for every variable in
+  \texttt{misclass}. When no mechanism is specified, it should assign a
+  contribution of one to every state.
+
+  \item Build the outcome-model design matrix from the fully expanded state
+  data. It must remain row-aligned with the standardized outcome,
+  observation identifiers, and misclassification contributions.
+
+  \item Define indices linking each observation state to the corresponding
+  row of the complete capture-cell matrix. This avoids repeatedly matching
+  capture histories, true categorical values, and latent classes during the
+  EM iterations.
+
+  \item Create a single internal model-matrix object containing the capture
+  grid, capture design matrix, expanded observation states, outcome design
+  matrix, alignment indices, and outcome metadata.
+
+  \item Integrate construction of this object into \texttt{crc\_fit()} while
+  retaining the current unfitted-object behavior.
+
+  \item Add focused tests for dimensions, row alignment, factor-level order,
+  all-zero capture cells, multiple misclassified variables, and
+  \texttt{true\_if} restrictions.
+\end{enumerate}
+
+Only after these structures and invariants are established should development
+proceed to parameter initialization and the EM algorithm. In the E-step, the
+misclassification contributions will be combined with capture-model expected
+cell frequencies and outcome likelihood contributions, and then normalized
+within each observed unit to obtain posterior state probabilities.
+
+\end{document}

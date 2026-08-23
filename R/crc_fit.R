@@ -87,14 +87,14 @@ crc_fit <- function(
       captures = parsed_captures,
       capture_model = parsed_capture_formula,
       outcome = parsed_outcome,
-      outcome_model = parse_outcome_formula,
+      outcome_model = parsed_outcome_formula,
       outcome_dist = outcome_dist,
       misclass = parsed_misclass,
       latent_classes = latent_classes,
       control = control,
       fitted = FALSE
     ),
-    class = c("crc_unfitted", "crcfit")
+    class = c("crcfit_unfitted", "crcfit")
   )
 
 }
