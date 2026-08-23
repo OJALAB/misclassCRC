@@ -41,6 +41,8 @@ If asked to generate code, stick to the following rules:
 - If not asked specifically, do not put the code in the files of the
   package; just present it in the chatbox (with information where it
   should be pasted).
+- After one prompt, try to generate no more than 50 lines of code.
+- Describe what is inside fragments of code.
 - If possible, use the `data.table` R package. However, take into
   account that CRAN checks sometimes show problems with name references,
   so be careful.
