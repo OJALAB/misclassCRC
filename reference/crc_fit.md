@@ -60,7 +60,7 @@ crc_fit(
 
 - control:
 
-  An optional control object reserved for future use.
+  An optional control list; only `init_alpha` is currently supported.
 
 ## Value
 
