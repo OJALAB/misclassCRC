@@ -13,7 +13,7 @@
 #' Currently, `"ztnegbin"` and `"ztpois"` are supported.
 #' @param misclass A specification of misclassification mechanisms.
 #' @param latent_classes A positive integer giving the number of latent classes.
-#' @param control An optional control object reserved for future use.
+#' @param control An optional control list; only `init_alpha` is currently supported.
 #' 
 #' @return 
 #' An object of class `"crcfit"`.
@@ -101,11 +101,19 @@ crc_fit <- function(
     latent_classes = latent_classes
   )
 
+  initialization <- initialize_crc(
+    model_matrices = model_matrices,
+    misclass = parsed_misclass,
+    latent_classes = latent_classes,
+    control = control
+  )
+
   structure(
     list(
       call = call,
       data = data,
       model_matrices = model_matrices,
+      initialization = initialization,
       captures = parsed_captures,
       capture_model = parsed_capture_formula,
       outcome = parsed_outcome,

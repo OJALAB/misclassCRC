@@ -15,7 +15,7 @@
 
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
-  {\large Model-matrix implementation addendum}
+  {\large Model-matrix and initialization implementation addendum}
 \end{center}
 
 \section{Model-matrix infrastructure}
@@ -128,21 +128,49 @@ expansion and makes the population-cell interpretation explicit.
 
 \newpage
 
+\section{Initialization}
+
+\texttt{initialize\_crc()} creates normalized initial weights for the expanded
+observation states and expected counts for the complete capture-cell grid. For
+multiple latent classes, independent gamma draws produce a symmetric
+Dirichlet allocation within each observation and candidate true-category
+configuration. These allocations are multiplied by the misclassification
+contributions and normalized within each observed unit. The concentration is
+set by \texttt{control\$init\_alpha} and defaults to 20.
+
+State weights are aggregated through the precomputed capture-cell indices.
+Observed cells receive the corresponding weighted counts, while every
+all-zero capture cell receives an initial expected count of one. The resulting
+\texttt{crc\_initialization} object stores the state weights, cell counts, and
+Dirichlet concentration and is retained by \texttt{crc\_fit()}.
+
+\section{Automated tests}
+
+The model-matrix and initialization infrastructure is covered by automated
+tests implemented with the \texttt{tinytest} package. Separate test files
+cover model matrices, misclassification expansion, cross-component
+compatibility, and initialization.
+
+The tests verify capture-grid and design-matrix dimensions, row alignment,
+factor-level order, all-zero capture cells, and capture-cell indices. They also
+cover multiple misclassified variables, multiplication of confusion-matrix
+contributions, and \texttt{true\_if} restrictions. Models without an outcome
+or misclassification mechanism and both new compatibility errors are included.
+All tests exercise the implemented behavior through \texttt{crc\_fit()} and
+pass against the built and installed package.
+
+Initialization tests additionally verify state-weight dimensions, finiteness,
+non-negativity, within-observation normalization, capture-cell aggregation,
+the default and custom concentration values, reproducibility under
+\texttt{set.seed()}, the single-class case, and invalid-control handling.
+
 \section{Required next steps}
 
-The model-matrix infrastructure is complete at the design level and passes
-\texttt{R CMD check}. Development should continue in the following order.
+The model-matrix and initialization infrastructure and their automated tests
+are complete at the design level. Development should continue in the following
+order.
 
 \begin{enumerate}
-  \item Add automated tests for dimensions, row alignment, factor-level order,
-  all-zero capture cells, multiple misclassified variables, and
-  \texttt{true\_if} restrictions. Tests should also cover models without an
-  outcome or misclassification mechanism and all new compatibility errors.
-
-  \item Define an internal initialization object and initialization rules for
-  latent-state weights, expected capture-cell counts, capture coefficients,
-  outcome coefficients, and negative-binomial dispersion when applicable.
-
   \item Implement the E-step by combining capture-cell expectations,
   misclassification contributions, and exact, censored, or missing outcome
   likelihood contributions. Normalize the resulting weights within each
@@ -155,8 +183,8 @@ The model-matrix infrastructure is complete at the design level and passes
   exposing fitted estimates through user-facing methods.
 \end{enumerate}
 
-Initialization and EM updates must follow the methodology in the accompanying
-paper and simulation implementation. Automated tests should establish the
-matrix and alignment invariants before those iterative components are added.
+EM updates must follow the methodology in the accompanying paper and simulation
+implementation. The existing automated tests establish the initialization,
+matrix, and alignment invariants on which those iterative components depend.
 
 \end{document}

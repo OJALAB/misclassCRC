@@ -64,6 +64,24 @@ validate_crc_input <- function(
     )
   }
 
+  if (!is.null(control) && !is.list(control)) {
+    stop("`control` must be `NULL` or a list.", call. = FALSE)
+  }
+
+  init_alpha <- if (is.null(control$init_alpha)) 20 else control$init_alpha
+  if (
+    !is.numeric(init_alpha) ||
+      length(init_alpha) != 1L ||
+      is.na(init_alpha) ||
+      !is.finite(init_alpha) ||
+      init_alpha <= 0
+  ) {
+    stop(
+      "`control$init_alpha` must be a finite positive number.",
+      call. = FALSE
+    )
+  }
+
   invisible(TRUE)
 
 }

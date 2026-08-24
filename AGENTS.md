@@ -30,7 +30,8 @@ with the following files (currently):
 
 - `R/crc_fit.R` -- the main function,
 - `R/validation.R` -- validation of input data,
-- `R/parsers.R` -- parsers of input data.
+- `R/parsers.R` -- parsers of input data,
+- `R/model_matrices.R` -- model matrices.
 
 `documents/package_specification.pdf` provides an overview
 of what has already been done in the package. In short,

@@ -3,5 +3,6 @@
 export(crc_fit)
 import(data.table)
 importFrom(stats,model.matrix)
+importFrom(stats,rgamma)
 importFrom(stats,setNames)
 importFrom(stats,terms)

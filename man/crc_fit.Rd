@@ -38,7 +38,7 @@ Currently, \code{"ztnegbin"} and \code{"ztpois"} are supported.}
 
 \item{latent_classes}{A positive integer giving the number of latent classes.}
 
-\item{control}{An optional control object reserved for future use.}
+\item{control}{An optional control list; only \code{init_alpha} is currently supported.}
 }
 \value{
 An object of class \code{"crcfit"}.
