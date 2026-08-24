@@ -20,10 +20,12 @@
 
 \section{Model-matrix infrastructure}
 
-The package now contains initial infrastructure for converting parsed model
-specifications into complete cell grids and observation-level latent states.
-The implementation remains separate from \texttt{crc\_fit()} until the
-remaining matrices and their alignment rules are defined.
+The package now converts parsed model specifications into complete capture-cell
+grids and aligned observation-level states. The infrastructure includes the
+capture and outcome design matrices, misclassification contributions, and a
+direct mapping from each observation state to its capture cell. Construction
+of these components is integrated into \texttt{crc\_fit()}, although model
+fitting has not yet been implemented.
 
 \subsection{Capture-model matrix}
 
@@ -49,6 +51,9 @@ each latent class. It retains the variables needed by the capture model,
 outcome model, and misclassification mechanisms. It also keeps aligned copies
 of the standardized outcome and observed values of misclassified variables.
 An observation identifier maps every expanded row back to its original unit.
+Only variables used by the capture or outcome model are retained in the state
+data. Recorded values of variables subject to misclassification are stored
+separately for evaluation of their confusion-matrix contributions.
 
 \subsection{Misclassified-variable expansion}
 
@@ -69,43 +74,89 @@ categories. Dependent mechanisms may be supported in a future extension.
 These contributions are likelihood terms, not posterior probabilities, and
 must not be normalized at this stage.
 
+\texttt{expand\_all\_misclass\_states()} applies this expansion successively
+to every specified variable. When no misclassification mechanism is supplied,
+it assigns a contribution of one to every latent state.
+
+\subsection{Outcome-model matrix}
+
+\texttt{build\_outcome\_matrix()} applies the parsed outcome terms to the
+fully expanded state data. Its rows therefore remain aligned with the state
+data, standardized outcomes, observation identifiers, and accumulated
+misclassification contributions. It returns \texttt{NULL} when no outcome
+model is specified.
+
+Every predictor in \texttt{outcome\_formula} is required to occur in
+\texttt{capture\_formula}. This ensures that the predictor is represented in
+the complete capture-cell grid and is consequently available for prediction
+in the all-zero cells. The formulas may contain different terms; only the set
+of variables is constrained.
+
+\subsection{Capture-cell indices}
+
+\texttt{build\_capture\_index()} returns one integer index for every expanded
+observation state. Matching uses the capture indicators, categorical variables
+in the capture model, and latent class. If the $i$th value is $r$, row $i$ of
+the state data uses row $r$ of the capture-cell grid and capture design matrix.
+The vector avoids repeated joins during future EM iterations. Construction
+fails if any state cannot be matched to the grid.
+
+\subsection{Unified model-matrix object}
+
+\texttt{build\_model\_matrices()} coordinates the complete construction
+sequence and returns an object of class \texttt{crc\_model\_matrices} with:
+
+\begin{itemize}
+  \item \texttt{capture}, containing the cell grid, capture design matrix,
+  and all-zero-cell indicator;
+  \item \texttt{states}, containing expanded state data and aligned metadata;
+  \item \texttt{outcome\_matrix}, containing the outcome design matrix or
+  \texttt{NULL};
+  \item \texttt{capture\_index}, linking state rows to capture-cell rows.
+\end{itemize}
+
+\texttt{crc\_fit()} constructs this object after parsing and compatibility
+validation and stores it as \texttt{model\_matrices}. The returned object
+remains in class \texttt{crcfit\_unfitted} and has \texttt{fitted = FALSE}.
+
+\subsection{Cross-component validation}
+
+Compatibility checks now reject outcome predictors absent from the capture
+model. They also reject variables specified in \texttt{misclass} that are used
+by neither the capture nor the outcome model. This prevents redundant state
+expansion and makes the population-cell interpretation explicit.
+
 \newpage
 
 \section{Required next steps}
 
-The model-matrix work should continue in the following order.
+The model-matrix infrastructure is complete at the design level and passes
+\texttt{R CMD check}. Development should continue in the following order.
 
 \begin{enumerate}
-  \item Add a small wrapper that calls
-  \texttt{expand\_misclass\_states()} for every variable in
-  \texttt{misclass}. When no mechanism is specified, it should assign a
-  contribution of one to every state.
-
-  \item Build the outcome-model design matrix from the fully expanded state
-  data. It must remain row-aligned with the standardized outcome,
-  observation identifiers, and misclassification contributions.
-
-  \item Define indices linking each observation state to the corresponding
-  row of the complete capture-cell matrix. This avoids repeatedly matching
-  capture histories, true categorical values, and latent classes during the
-  EM iterations.
-
-  \item Create a single internal model-matrix object containing the capture
-  grid, capture design matrix, expanded observation states, outcome design
-  matrix, alignment indices, and outcome metadata.
-
-  \item Integrate construction of this object into \texttt{crc\_fit()} while
-  retaining the current unfitted-object behavior.
-
-  \item Add focused tests for dimensions, row alignment, factor-level order,
+  \item Add automated tests for dimensions, row alignment, factor-level order,
   all-zero capture cells, multiple misclassified variables, and
-  \texttt{true\_if} restrictions.
+  \texttt{true\_if} restrictions. Tests should also cover models without an
+  outcome or misclassification mechanism and all new compatibility errors.
+
+  \item Define an internal initialization object and initialization rules for
+  latent-state weights, expected capture-cell counts, capture coefficients,
+  outcome coefficients, and negative-binomial dispersion when applicable.
+
+  \item Implement the E-step by combining capture-cell expectations,
+  misclassification contributions, and exact, censored, or missing outcome
+  likelihood contributions. Normalize the resulting weights within each
+  observed unit.
+
+  \item Implement separate M-step updates for the capture and outcome models,
+  using the posterior state weights and the existing alignment indices.
+
+  \item Add convergence controls, numerical safeguards, and diagnostics before
+  exposing fitted estimates through user-facing methods.
 \end{enumerate}
 
-Only after these structures and invariants are established should development
-proceed to parameter initialization and the EM algorithm. In the E-step, the
-misclassification contributions will be combined with capture-model expected
-cell frequencies and outcome likelihood contributions, and then normalized
-within each observed unit to obtain posterior state probabilities.
+Initialization and EM updates must follow the methodology in the accompanying
+paper and simulation implementation. Automated tests should establish the
+matrix and alignment invariants before those iterative components are added.
 
 \end{document}

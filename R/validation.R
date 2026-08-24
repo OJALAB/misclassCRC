@@ -119,3 +119,66 @@ validate_categorical_variables <- function(
   invisible(TRUE)
   
 }
+
+#' @noRd
+validate_model_compatibility <- function(
+  capture_model,
+  outcome_model
+) {
+
+  if (is.null(outcome_model)) {
+    return(invisible(TRUE))
+  }
+
+  missing_variables <- setdiff(
+    outcome_model$variables,
+    capture_model$variables
+  )
+
+  if (length(missing_variables) > 0L) {
+    stop(
+      "The following variables in `outcome_formula` are not included in ",
+      "`capture_formula`: ",
+      paste0("`", missing_variables, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  invisible(TRUE)
+
+}
+
+#' @noRd
+validate_misclass_compatibility <- function(
+  misclass,
+  capture_model,
+  outcome_model
+) {
+
+  if (is.null(misclass)) {
+    return(invisible(TRUE))
+  }
+
+  model_variables <- unique(c(
+    capture_model$variables,
+    if (is.null(outcome_model)) character(0L) else outcome_model$variables
+  ))
+
+  unused_variables <- setdiff(
+    misclass$variables,
+    model_variables
+  )
+
+  if (length(unused_variables) > 0L) {
+    stop(
+      "The following variables in `misclass` are not used in either model: ",
+      paste0("`", unused_variables, "`", collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  invisible(TRUE)
+
+}

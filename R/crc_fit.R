@@ -80,10 +80,32 @@ crc_fit <- function(
     latent_classes = latent_classes
   )
 
+  validate_model_compatibility(
+    capture_model = parsed_capture_formula,
+    outcome_model = parsed_outcome_formula
+  )
+
+  validate_misclass_compatibility(
+    misclass = parsed_misclass,
+    capture_model = parsed_capture_formula,
+    outcome_model = parsed_outcome_formula
+  )
+
+  model_matrices <- build_model_matrices(
+    data = data,
+    captures = parsed_captures,
+    capture_model = parsed_capture_formula,
+    outcome = parsed_outcome,
+    outcome_model = parsed_outcome_formula,
+    misclass = parsed_misclass,
+    latent_classes = latent_classes
+  )
+
   structure(
     list(
       call = call,
       data = data,
+      model_matrices = model_matrices,
       captures = parsed_captures,
       capture_model = parsed_capture_formula,
       outcome = parsed_outcome,

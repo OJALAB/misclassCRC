@@ -1,7 +1,7 @@
 #' Build the Capture-Model Matrix
 #' 
 #' @import data.table
-#' @importFrom stats model.matrix
+#' @importFrom stats model.matrix setNames
 #'
 #' @noRd
 build_capture_matrix <- function(
@@ -92,8 +92,7 @@ build_observation_states <- function(
   variable_names <- unique(c(
     captures$names,
     capture_model$variables,
-    outcome_names,
-    misclass_names
+    outcome_names
   ))
 
   observation_id <- rep(
@@ -108,7 +107,7 @@ build_observation_states <- function(
   ]
 
   state_data[,
-    .latent := factor(
+    (".latent") := factor(
       rep(seq_len(latent_classes), times = nrow(data)),
       levels = seq_len(latent_classes)
     )
@@ -236,4 +235,131 @@ expand_all_misclass_states <- function(
 
   states
   
+}
+
+#' Build the Outcome-Model Matrix
+#'
+#' @importFrom stats model.matrix
+#'
+#' @noRd
+build_outcome_matrix <- function(
+  states,
+  outcome_model
+) {
+
+  if (is.null(outcome_model)) {
+    return(NULL)
+  }
+
+  matrix <- model.matrix(
+    outcome_model$terms,
+    data = states$data
+  )
+
+  n_states <- nrow(states$data)
+
+  aligned <- (nrow(matrix) == n_states &&
+    length(states$observation_id) == n_states &&
+    !is.null(states$outcome) &&
+    nrow(states$outcome) == n_states &&
+    length(states$misclass_probability) == n_states)
+
+  if (!aligned) {
+    stop(
+      "Outcome-model components are not aligned with observation states.",
+      call. = FALSE
+    )
+  }
+
+  matrix
+
+}
+
+#' Build Capture-Cell Indices
+#' 
+#' @noRd
+build_capture_index <- function(
+  states,
+  capture,
+  captures,
+  capture_model
+) {
+
+  key_names <- unique(c(
+    captures$names,
+    capture_model$variables,
+    ".latent"
+  ))
+
+  lookup <- copy(
+    capture$cells[, key_names, with = FALSE]
+  )
+  lookup[
+    ,
+    ("capture_index") := seq_len(nrow(lookup))
+  ]
+
+  index <- lookup[
+    states$data,
+    on = key_names
+  ][["capture_index"]]
+
+  if (anyNA(index)) {
+    stop(
+      "Some observation states do not match the capture-cell grid.",
+      call. = FALSE
+    )
+  }
+
+  index
+
+}
+
+#' Build Model Matrices
+#' 
+#' @noRd
+build_model_matrices <- function(
+  data,
+  captures,
+  capture_model,
+  outcome,
+  outcome_model,
+  misclass,
+  latent_classes
+) {
+
+  capture <- build_capture_matrix(
+    data,
+    captures,
+    capture_model,
+    misclass,
+    latent_classes
+  )
+
+  states <- build_observation_states(
+    data,
+    captures,
+    capture_model,
+    outcome,
+    outcome_model,
+    misclass,
+    latent_classes
+  )
+  states <- expand_all_misclass_states(states, misclass)
+
+  structure(
+    list(
+      capture = capture,
+      states = states,
+      outcome_matrix = build_outcome_matrix(states, outcome_model),
+      capture_index = build_capture_index(
+        states,
+        capture,
+        captures,
+        capture_model
+      )
+    ),
+    class = "crc_model_matrices"
+  )
+
 }
