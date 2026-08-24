@@ -58,6 +58,10 @@ introduce only minimal and necessary changes.
 - Use the methodology that you are directly asked for or
 that is present in `papers/`. Don't change the methodology
 on your own.
+- Don't create a file with the compiled package in the directory.
+- If not asked, don't touch the files in `inst/tinytest/`.
+- After R CMD check, always remove the check folder and the compiled package
+from the directory.
 
 ## Documentation Guidelines
 
