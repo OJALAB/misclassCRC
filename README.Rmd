@@ -19,3 +19,7 @@ pak::pkg_install("OJALAB/misclassCRC")
 ## Funding
 
 Work on this package is supported by the OPUS 27 grant no. 2024/53/B/HS4/01580, funded by the National Science Centre in Poland.
+
+## Use of AI Tools
+
+Some elements of the package were designed with the support of OpenAI Codex and StatsClaw.
