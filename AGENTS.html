@@ -48,7 +48,7 @@
 <div class="section level2">
 <h2 id="overview-of-the-misclasscrc-r-package">Overview of the <code>misclassCRC</code> R Package<a class="anchor" aria-label="anchor" href="#overview-of-the-misclasscrc-r-package"></a></h2>
 <p>This is an R package for capture-recapture models with latent classes and error correction.</p>
-<p>In the context of job vacancy estimation, the method is described in <code>papers/Struzik-IAOS-YSP-2026-Paper.pdf</code>. The implementation of the simulation study from the paper is provided in <code>submission-2026-IAOS-prize/</code>.</p>
+<p>In the context of job vacancy estimation, the method is described in <code>papers/Struzik-IAOS-YSP-2026-Paper.pdf</code>. A more detailed mathematical description is included in <code>papers/crc-vacancies.pdf</code>. The implementation of the simulation study from the paper is provided in <code>submission-2026-IAOS-prize/</code>.</p>
 <p>The goal of this package is to implement the proposed approach in a general setting, i.e., not only related to job vacancy estimation.</p>
 </div>
 <div class="section level2">
@@ -61,7 +61,13 @@
 <li>
 <code>R/parsers.R</code> – parsers of input data,</li>
 <li>
-<code>R/model_matrices.R</code> – model matrices.</li>
+<code>R/model_matrices.R</code> – model matrices,</li>
+<li>
+<code>R/initialization.R</code> – initialization of model parameters,</li>
+<li>
+<code>R/expectation.R</code> – E-step of the EM algorithm,</li>
+<li>
+<code>R/outcome_likelihood.R</code> – likelihood function for the outcome model.</li>
 </ul><p><code>documents/package_specification.pdf</code> provides an overview of what has already been done in the package. In short, validation, parsers, and the structure of the main function have been created.</p>
 </div>
 <div class="section level2">
