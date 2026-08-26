@@ -15,7 +15,9 @@ This is an R package for capture-recapture models
 with latent classes and error correction.
 
 In the context of job vacancy estimation, the method is described in
-`papers/Struzik-IAOS-YSP-2026-Paper.pdf`. The implementation
+`papers/Struzik-IAOS-YSP-2026-Paper.pdf`.
+A more detailed mathematical description is included in
+`papers/crc-vacancies.pdf`. The implementation
 of the simulation study from the paper is provided in
 `submission-2026-IAOS-prize/`. 
 
@@ -31,7 +33,10 @@ with the following files (currently):
 - `R/crc_fit.R` -- the main function,
 - `R/validation.R` -- validation of input data,
 - `R/parsers.R` -- parsers of input data,
-- `R/model_matrices.R` -- model matrices.
+- `R/model_matrices.R` -- model matrices,
+- `R/initialization.R` -- initialization of model parameters,
+- `R/expectation.R` -- E-step of the EM algorithm,
+- `R/outcome_likelihood.R` -- likelihood function for the outcome model.
 
 `documents/package_specification.pdf` provides an overview
 of what has already been done in the package. In short,

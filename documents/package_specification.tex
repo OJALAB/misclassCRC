@@ -5,6 +5,7 @@
 \usepackage{lmodern}
 \usepackage{microtype}
 \usepackage{enumitem}
+\usepackage{amsmath}
 
 \setcounter{page}{6}
 \setlength{\parindent}{0pt}
@@ -15,7 +16,8 @@
 
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
-  {\large Model-matrix, initialization, and E-step implementation addendum}
+  {\large Model-matrix, initialization, E-step, and outcome-likelihood
+  implementation addendum}
 \end{center}
 
 \section{Model-matrix infrastructure}
@@ -183,50 +185,77 @@ M-steps needed to supply its inputs have not been implemented.
 using \texttt{expm1()}. This helper is intended for interval-censored outcome
 likelihoods, where the required probability is obtained by subtracting two
 survival probabilities. It also handles the case in which both probabilities
-are zero and their log values are negative infinity. The main outcome
-log-likelihood function has not yet been implemented.
+are zero and their log values are negative infinity.
+
+\section{Outcome log-likelihood}
+
+\texttt{outcome\_loglik\_crc()} evaluates one outcome log-likelihood
+contribution for every expanded observation state. Its arguments are the
+aligned standardized outcome table, a positive mean \texttt{mu} for every
+state, the outcome distribution, and, for the negative binomial model, a
+single positive dispersion parameter \texttt{sigma}. Predictors in
+\texttt{outcome\_formula}, including \texttt{.latent}, may therefore produce
+different means for different candidate states of the same observed unit.
+
+Let $W$ denote the corresponding untruncated count. Under
+\texttt{"ztpois"}, $W\sim\operatorname{Poisson}(\mu)$. Under
+\texttt{"ztnegbin"}, $W$ has mean $\mu$, size $1/\sigma$, and variance
+$\mu+\sigma\mu^2$. In both cases the modeled outcome is the conditional
+variable $V=W\mid W\geq1$. If $f$, $F$, and $S(q)=\Pr(W>q)$ denote the
+untruncated mass, distribution, and survival functions, respectively, the
+implemented contribution is
+\[
+  \ell_V=
+  \begin{cases}
+    \log f(v)-\log S(0), & \text{exact observation},\\
+    \log\{S(l-1)-S(u)\}-\log S(0),
+      & \text{interval }l\leq V\leq u,\\
+    \log S(l-1)-\log S(0), & \text{right censoring }V\geq l,\\
+    0, & \text{missing outcome}.
+  \end{cases}
+\]
+Thus, interval bounds are inclusive and missing outcomes contribute a
+likelihood factor of one under the ignorable coarsening assumption. Exact
+contributions use the log probability mass directly. Interval contributions
+use upper-tail log probabilities and \texttt{log\_sub\_crc()}, avoiding
+unstable subtraction of nearly equal ordinary probabilities in the right
+tail. No artificial probability floor is applied.
 
 \section{Automated tests}
 
-The model-matrix, initialization, and E-step infrastructure is covered by
-automated tests implemented with the \texttt{tinytest} package. Separate test
-files cover model matrices, misclassification expansion, cross-component
-compatibility, initialization, and expectation calculations.
+The model-matrix, initialization, E-step, and outcome-likelihood infrastructure
+is covered by automated tests implemented with the \texttt{tinytest} package.
+Separate test files cover model matrices, misclassification expansion,
+cross-component compatibility, initialization, expectation calculations, and
+outcome log-likelihood calculations.
 
-The tests verify capture-grid and design-matrix dimensions, row alignment,
-factor-level order, all-zero capture cells, and capture-cell indices. They also
-cover multiple misclassified variables, multiplication of confusion-matrix
-contributions, and \texttt{true\_if} restrictions. Models without an outcome
-or misclassification mechanism and both new compatibility errors are included.
-The matrix, compatibility, and initialization tests exercise the implemented
-behavior through \texttt{crc\_fit()}. The E-step is tested directly as an
-internal function because it has not yet been integrated into the fitting
-loop. All tests pass against the built and installed package.
+The existing tests cover capture grids and design matrices, row alignment,
+factor levels, all-zero cells, misclassification expansion, compatibility,
+initialization, and E-step behavior. Matrix, compatibility, and initialization
+tests exercise the implemented behavior through \texttt{crc\_fit()}; the
+E-step is tested directly because it is not yet integrated into the fitting
+loop.
 
-Initialization tests additionally verify state-weight dimensions, finiteness,
-non-negativity, within-observation normalization, capture-cell aggregation,
-the default and custom concentration values, reproducibility under
-\texttt{set.seed()}, the single-class case, and invalid-control handling.
+Initialization tests verify normalized, reproducible state weights and their
+capture-cell aggregation, including the single-class case and invalid control
+values. Fifteen E-step assertions cover posterior normalization, impossible
+states, cell aggregation, numerical stability, dimensions, and validation.
 
-The E-step tests verify the posterior-weight formula, normalization within
-observed units, exact zero weights for impossible states, capture-cell
-aggregation, all-zero-cell expectations, omission of the outcome contribution,
-log-scale numerical stability, returned dimensions and class, and the main
-validation failures. The current suite contains 56 passing assertions, of
-which 14 exercise \texttt{expectation\_crc()}.
+The outcome-likelihood tests compare the Poisson and negative binomial results
+with direct probability calculations for mixed exact, interval-censored,
+right-censored, and missing outcomes. They also verify inclusive interval
+bounds, a right-censoring boundary at one, numerical stability in the far
+right tail, and validation of the mean and dispersion inputs. The complete
+suite now contains 66 passing assertions, of which nine exercise
+\texttt{outcome\_loglik\_crc()}.
 
 \section{Required next steps}
 
-The model-matrix, initialization, and distribution-independent E-step
-infrastructure and their automated tests are complete at the design level.
-Development should continue in the following order.
+The model-matrix, initialization, distribution-independent E-step, and
+outcome-likelihood infrastructure and their automated tests are complete at
+the design level. Development should continue in the following order.
 
 \begin{enumerate}
-  \item Implement state-aligned outcome log-likelihood contributions for exact,
-  interval-censored, right-censored, and missing outcomes under the
-  zero-truncated Poisson and negative binomial distributions. Use
-  \texttt{log\_sub\_crc()} for stable interval probabilities.
-
   \item Implement separate M-step updates for the capture and outcome models,
   using the posterior state weights and the existing alignment indices.
 

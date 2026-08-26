@@ -2,7 +2,11 @@
 
 export(crc_fit)
 import(data.table)
+importFrom(stats,dnbinom)
+importFrom(stats,dpois)
 importFrom(stats,model.matrix)
+importFrom(stats,pnbinom)
+importFrom(stats,ppois)
 importFrom(stats,rgamma)
 importFrom(stats,setNames)
 importFrom(stats,terms)
