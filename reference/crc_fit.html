@@ -54,7 +54,8 @@
 <span>  outcome_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ztnegbin"</span>, <span class="st">"ztpois"</span><span class="op">)</span>,</span>
 <span>  misclass <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  latent_classes <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  control <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  control <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -100,7 +101,24 @@ Currently, <code>"ztnegbin"</code> and <code>"ztpois"</code> are supported.</p><
 
 
 <dt id="arg-control">control<a class="anchor" aria-label="anchor" href="#arg-control"></a></dt>
-<dd><p>An optional control list; only <code>init_alpha</code> is currently supported.</p></dd>
+<dd><p><code>NULL</code> or a named list controlling initialization and model fitting.
+If <code>NULL</code>, the default values are used. Supported elements are:</p><ul><li><p><code>init_alpha</code>: A finite positive number controlling the concentration of the
+symmetric Dirichlet distribution used to initialize latent-class weights.
+The default is <code>20</code>.</p></li>
+<li><p><code>em</code>: A named list with <code>max_iter</code>, the maximum number of EM iterations
+(default <code>1000L</code>), and <code>tolerance</code>, the convergence tolerance (default <code>1e-6</code>).</p></li>
+<li><p><code>capture</code>: A named list with <code>max_iter</code>, the maximum number of iterations
+used in the capture-model M-step (default <code>100L</code>), and <code>tolerance</code>, its
+convergence tolerance (default <code>1e-8</code>).</p></li>
+<li><p><code>outcome</code>: A named list with <code>max_iter</code>, the maximum number of iterations
+used in the outcome-model M-step (default <code>1000L</code>), and <code>relative_tolerance</code>,
+its relative tolerance (default <code>1e-8</code>).</p></li>
+</ul><p>Unknown control elements are rejected.</p></dd>
+
+
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>A logical value indicating whether progress information should
+be displayed during model fitting. The default is <code>FALSE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

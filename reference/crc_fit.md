@@ -14,7 +14,8 @@ crc_fit(
   outcome_dist = c("ztnegbin", "ztpois"),
   misclass = NULL,
   latent_classes = 1L,
-  control = NULL
+  control = NULL,
+  verbose = FALSE
 )
 ```
 
@@ -60,7 +61,31 @@ crc_fit(
 
 - control:
 
-  An optional control list; only `init_alpha` is currently supported.
+  `NULL` or a named list controlling initialization and model fitting.
+  If `NULL`, the default values are used. Supported elements are:
+
+  - `init_alpha`: A finite positive number controlling the concentration
+    of the symmetric Dirichlet distribution used to initialize
+    latent-class weights. The default is `20`.
+
+  - `em`: A named list with `max_iter`, the maximum number of EM
+    iterations (default `1000L`), and `tolerance`, the convergence
+    tolerance (default `1e-6`).
+
+  - `capture`: A named list with `max_iter`, the maximum number of
+    iterations used in the capture-model M-step (default `100L`), and
+    `tolerance`, its convergence tolerance (default `1e-8`).
+
+  - `outcome`: A named list with `max_iter`, the maximum number of
+    iterations used in the outcome-model M-step (default `1000L`), and
+    `relative_tolerance`, its relative tolerance (default `1e-8`).
+
+  Unknown control elements are rejected.
+
+- verbose:
+
+  A logical value indicating whether progress information should be
+  displayed during model fitting. The default is `FALSE`.
 
 ## Value
 
