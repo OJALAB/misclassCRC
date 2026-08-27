@@ -13,8 +13,25 @@
 #' Currently, `"ztnegbin"` and `"ztpois"` are supported.
 #' @param misclass A specification of misclassification mechanisms.
 #' @param latent_classes A positive integer giving the number of latent classes.
-#' @param control An optional control list; only `init_alpha` is currently supported.
-#' 
+#' @param control `NULL` or a named list controlling initialization and model fitting.
+#' If `NULL`, the default values are used. Supported elements are:
+#'
+#' - `init_alpha`: A finite positive number controlling the concentration of the
+#' symmetric Dirichlet distribution used to initialize latent-class weights.
+#' The default is `20`.
+#' - `em`: A named list with `max_iter`, the maximum number of EM iterations
+#' (default `1000L`), and `tolerance`, the convergence tolerance (default `1e-6`).
+#' - `capture`: A named list with `max_iter`, the maximum number of iterations
+#' used in the capture-model M-step (default `100L`), and `tolerance`, its
+#' convergence tolerance (default `1e-8`).
+#' - `outcome`: A named list with `max_iter`, the maximum number of iterations
+#' used in the outcome-model M-step (default `1000L`), and `relative_tolerance`,
+#' its relative tolerance (default `1e-8`).
+#'
+#' Unknown control elements are rejected.
+#' @param verbose A logical value indicating whether progress information should
+#' be displayed during model fitting. The default is `FALSE`.
+#'
 #' @return 
 #' An object of class `"crcfit"`.
 #'
@@ -28,7 +45,8 @@ crc_fit <- function(
   outcome_dist = c("ztnegbin", "ztpois"),
   misclass = NULL,
   latent_classes = 1L,
-  control = NULL
+  control = NULL,
+  verbose = FALSE
 ) {
 
   call <- match.call()
@@ -37,6 +55,8 @@ crc_fit <- function(
     outcome_dist,
     c("ztnegbin", "ztpois")
   )
+
+  control <- parse_control(control)
 
   validate_crc_input(
     data = data,
@@ -47,63 +67,63 @@ crc_fit <- function(
     outcome_dist = outcome_dist,
     misclass = misclass,
     latent_classes = latent_classes,
-    control = control
+    verbose = verbose
   )
 
-  parsed_captures <- parse_captures(
+  captures <- parse_captures(
     captures = captures,
     data = data
   )
 
-  parsed_outcome <- parse_outcome(
+  outcome <- parse_outcome(
     outcome = outcome,
     data = data
   )
 
-  parsed_misclass <- parse_misclass(
+  misclass <- parse_misclass(
     misclass = misclass,
     data = data,
-    capture_names = parsed_captures$names
+    capture_names = captures$names
   )
 
-  parsed_capture_formula <- parse_capture_formula(
+  capture_formula <- parse_capture_formula(
     capture_formula = capture_formula,
     data = data,
-    capture_names = parsed_captures$names,
+    capture_names = captures$names,
     latent_classes = latent_classes
   )
 
-  parsed_outcome_formula <- parse_outcome_formula(
+  outcome_formula <- parse_outcome_formula(
     outcome_formula = outcome_formula,
     data = data,
-    outcome = parsed_outcome,
+    outcome = outcome,
     latent_classes = latent_classes
   )
 
   validate_model_compatibility(
-    capture_model = parsed_capture_formula,
-    outcome_model = parsed_outcome_formula
+    capture_model = capture_formula,
+    outcome_model = outcome_formula
   )
 
   validate_misclass_compatibility(
-    misclass = parsed_misclass,
-    capture_model = parsed_capture_formula,
-    outcome_model = parsed_outcome_formula
+    misclass = misclass,
+    capture_model = capture_formula,
+    outcome_model = outcome_formula
   )
 
   model_matrices <- build_model_matrices(
     data = data,
-    captures = parsed_captures,
-    capture_model = parsed_capture_formula,
-    outcome = parsed_outcome,
-    outcome_model = parsed_outcome_formula,
-    misclass = parsed_misclass,
+    captures = captures,
+    capture_model = capture_formula,
+    outcome = outcome,
+    outcome_model = outcome_formula,
+    misclass = misclass,
     latent_classes = latent_classes
   )
 
   initialization <- initialize_crc(
     model_matrices = model_matrices,
-    misclass = parsed_misclass,
+    misclass = misclass,
     latent_classes = latent_classes,
     control = control
   )
@@ -114,14 +134,15 @@ crc_fit <- function(
       data = data,
       model_matrices = model_matrices,
       initialization = initialization,
-      captures = parsed_captures,
-      capture_model = parsed_capture_formula,
-      outcome = parsed_outcome,
-      outcome_model = parsed_outcome_formula,
+      captures = captures,
+      capture_model = capture_formula,
+      outcome = outcome,
+      outcome_model = outcome_formula,
       outcome_dist = outcome_dist,
-      misclass = parsed_misclass,
+      misclass = misclass,
       latent_classes = latent_classes,
       control = control,
+      verbose = verbose,
       fitted = FALSE
     ),
     class = c("crcfit_unfitted", "crcfit")

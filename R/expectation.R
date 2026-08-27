@@ -90,7 +90,7 @@ expectation_crc <- function(
       state_weights = state_weights[[".state_weight"]],
       cell_counts = cell_counts
     ),
-    class = "crc_expectation"
+    class = "crc_estep"
   )
 
 }

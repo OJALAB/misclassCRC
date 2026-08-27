@@ -977,3 +977,106 @@ parse_misclass <- function(
   )
 
 }
+
+#' @noRd
+parse_control <- function(control) {
+
+  defaults <- list(
+    init_alpha = 20,
+    em = list(max_iter = 1000L, tolerance = 1e-6),
+    capture = list(max_iter = 100L, tolerance = 1e-8),
+    outcome = list(max_iter = 1000L, relative_tolerance = 1e-8)
+  )
+
+  if (is.null(control)) {
+    control <- list()
+  }
+
+  check_names <- function(x, allowed, context) {
+    if (!is.list(x)) {
+      stop("`", context, "` must be a list.", call. = FALSE)
+    }
+    if (length(x) == 0L) {
+      return(invisible(TRUE))
+    }
+    element_names <- names(x)
+    if (
+      is.null(element_names) ||
+        anyNA(element_names) ||
+        any(!nzchar(element_names)) ||
+        anyDuplicated(element_names)
+    ) {
+      stop("`", context, "` must have unique, non-empty names.", call. = FALSE)
+    }
+    unknown <- setdiff(element_names, allowed)
+    if (length(unknown) > 0L) {
+      stop(
+        "Unknown setting in `",
+        context,
+        "`: `",
+        paste(unknown, collapse = "`, `"),
+        "`.",
+        call. = FALSE
+      )
+    }
+    invisible(TRUE)
+  }
+
+  check_names(control, names(defaults), "control")
+  resolved <- defaults
+
+  if ("init_alpha" %in% names(control)) {
+    resolved$init_alpha <- control$init_alpha
+  }
+
+  for (section in c("em", "capture", "outcome")) {
+    if (section %in% names(control)) {
+      check_names(
+        control[[section]],
+        names(defaults[[section]]),
+        paste0("control$", section)
+      )
+      resolved[[section]][names(control[[section]])] <- control[[section]]
+    }
+  }
+
+  positive <- function(x, integer = FALSE) {
+    is.numeric(x) &&
+      length(x) == 1L &&
+      !is.na(x) &&
+      is.finite(x) &&
+      x > 0 &&
+      (!integer || x == floor(x))
+  }
+
+  if (!positive(resolved$init_alpha)) {
+    stop("`control$init_alpha` must be a finite positive number.", call. = FALSE)
+  }
+  if (!positive(resolved$em$max_iter, TRUE)) {
+    stop("`control$em$max_iter` must be a positive integer.", call. = FALSE)
+  }
+  if (!positive(resolved$em$tolerance)) {
+    stop("`control$em$tolerance` must be a finite positive number.", call. = FALSE)
+  }
+  if (!positive(resolved$capture$max_iter, TRUE)) {
+    stop("`control$capture$max_iter` must be a positive integer.", call. = FALSE)
+  }
+  if (!positive(resolved$capture$tolerance)) {
+    stop(
+      "`control$capture$tolerance` must be a finite positive number.",
+      call. = FALSE
+    )
+  }
+  if (!positive(resolved$outcome$max_iter, TRUE)) {
+    stop("`control$outcome$max_iter` must be a positive integer.", call. = FALSE)
+  }
+  if (!positive(resolved$outcome$relative_tolerance)) {
+    stop(
+      "`control$outcome$relative_tolerance` must be a finite positive number.",
+      call. = FALSE
+    )
+  }
+
+  structure(resolved, class = "crc_control")
+
+}

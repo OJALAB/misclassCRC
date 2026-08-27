@@ -16,8 +16,8 @@
 
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
-  {\large Model-matrix, initialization, E-step, and outcome-likelihood
-  implementation addendum}
+  {\large Model-matrix, initialization, E-step, capture-model M-step,
+  and outcome-likelihood implementation addendum}
 \end{center}
 
 \section{Model-matrix infrastructure}
@@ -26,8 +26,9 @@ The package now converts parsed model specifications into complete capture-cell
 grids and aligned observation-level states. The infrastructure includes the
 capture and outcome design matrices, misclassification contributions, and a
 direct mapping from each observation state to its capture cell. Construction
-of these components is integrated into \texttt{crc\_fit()}, although model
-fitting has not yet been implemented.
+of these components is integrated into \texttt{crc\_fit()}. The capture-model
+M-step is available as an internal fitting component, although the complete EM
+algorithm has not yet been integrated into \texttt{crc\_fit()}.
 
 \subsection{Capture-model matrix}
 
@@ -146,6 +147,30 @@ all-zero capture cell receives an initial expected count of one. The resulting
 \texttt{crc\_initialization} object stores the state weights, cell counts, and
 Dirichlet concentration and is retained by \texttt{crc\_fit()}.
 
+\section{Control and progress interface}
+
+\texttt{parse\_control()} resolves the user-supplied \texttt{control} list
+against complete defaults and returns an object of class
+\texttt{crc\_control}. The resolved object is stored by \texttt{crc\_fit()}.
+Partial overrides are supported, while unknown, duplicated, unnamed, and
+invalid settings are rejected. The available settings are:
+
+\begin{itemize}
+  \item \texttt{init\_alpha}, the positive Dirichlet concentration, with
+  default 20;
+  \item \texttt{em\$max\_iter} and \texttt{em\$tolerance}, with defaults
+  1000 and $10^{-6}$;
+  \item \texttt{capture\$max\_iter} and
+  \texttt{capture\$tolerance}, with defaults 100 and $10^{-8}$;
+  \item \texttt{outcome\$max\_iter} and
+  \texttt{outcome\$relative\_tolerance}, with defaults 1000 and $10^{-8}$.
+\end{itemize}
+
+The separate logical argument \texttt{verbose} controls user-facing progress
+information and defaults to \texttt{FALSE}. It is validated and stored by
+\texttt{crc\_fit()}; optimizer-specific tracing is not part of the public
+control interface.
+
 \section{Expectation step}
 
 \texttt{expectation\_crc()} implements the distribution-independent part of
@@ -171,21 +196,37 @@ overflow.
 The normalized state weights are aggregated through \texttt{capture\_index}
 to update the expected counts for observed capture histories. Expected counts
 for all-zero histories are set to their current fitted capture-model means.
-The function returns a \texttt{crc\_expectation} object containing one
+The function returns a \texttt{crc\_estep} object containing one
 posterior weight per expanded state and one expected count per capture cell.
-It is not yet called by \texttt{crc\_fit()}, because the capture and outcome
-M-steps needed to supply its inputs have not been implemented.
+It is not yet called by \texttt{crc\_fit()}, because the outcome M-step and
+the complete EM iteration have not been implemented.
 
-\subsection{Log-scale probability subtraction}
+\section{Capture-model maximization}
 
-\texttt{log\_sub\_crc()} provides the stable operation
+\texttt{maximize\_capture\_crc()} implements the capture component of the
+M-step. Given expected capture-cell counts $n_c$ and capture-model rows $x_c$,
+it maximizes
 \[
-  \log\{\exp(a)-\exp(b)\}, \qquad a\geq b,
+  Q_Y(\theta)=\sum_c\{n_c\log m_c(\theta)-m_c(\theta)\},
+  \qquad m_c(\theta)=\exp(x_c^\mathsf{T}\theta).
 \]
-using \texttt{expm1()}. This helper is intended for interval-censored outcome
-likelihoods, where the required probability is obtained by subtracting two
-survival probabilities. It also handles the case in which both probabilities
-are zero and their log values are negative infinity.
+The maximization is performed with \texttt{glm.fit()} using a Poisson family
+and logarithmic link. Fractional expected cell counts are valid for this
+objective because the omitted terms do not depend on $\theta$. The specific
+Poisson warning about non-integer counts is suppressed, while other warnings
+remain visible.
+
+When no starting values are supplied, all coefficients start at zero, giving
+initial fitted cell means of one. The function also accepts previous
+coefficients as warm starts for later EM iterations. The public capture
+controls will be translated to \texttt{glm.control()} when the EM loop is
+integrated.
+
+The function rejects invalid counts or starting values, non-convergence,
+rank-deficient design matrices, non-finite coefficients, and non-positive or
+non-finite fitted means. It returns a \texttt{crc\_capture\_mstep} object with
+the coefficients, fitted cell means, maximized objective value, iteration
+count, and convergence indicator.
 
 \section{Outcome log-likelihood}
 
@@ -221,12 +262,69 @@ use upper-tail log probabilities and \texttt{log\_sub\_crc()}, avoiding
 unstable subtraction of nearly equal ordinary probabilities in the right
 tail. No artificial probability floor is applied.
 
+\subsection{Log-scale probability subtraction}
+
+\texttt{log\_sub\_crc()} provides the stable operation
+\[
+  \log\{\exp(a)-\exp(b)\}, \qquad a\geq b,
+\]
+using \texttt{expm1()}. This helper is used for interval-censored outcome
+likelihoods, where the required probability is obtained by subtracting two
+survival probabilities. It also handles the case in which both probabilities
+are zero and their log values are negative infinity.
+
+\section{Planned outcome-model maximization}
+
+The outcome component of the M-step will maximize the posterior-weighted
+expected log-likelihood
+\[
+  Q_V(\phi)=\sum_s \tau_s\ell_V(s;\phi),
+\]
+where $s$ indexes the expanded observation states, $\tau_s$ is the current
+posterior state weight, and $\ell_V(s;\phi)$ is provided by
+\texttt{outcome\_loglik\_crc()}. Missing outcomes have zero log-likelihood
+contributions and therefore do not affect this maximization.
+
+The implementation will minimize $-Q_V$ with \texttt{optim()} using
+\texttt{method = "BFGS"}. For \texttt{"ztpois"}, the parameter vector will
+contain only the outcome regression coefficients $\beta$, with
+$\mu_s=\exp(z_s^\mathsf{T}\beta)$. For \texttt{"ztnegbin"}, it will also
+contain \texttt{log\_sigma}; optimizing the logarithm guarantees
+$\sigma>0$ without box constraints. No arbitrary coefficient bounds or
+user-selected optimizer will be exposed initially. Numerical derivatives will
+be used in the first implementation; analytical derivatives may be added if
+profiling demonstrates a material need.
+
+For the first M-step, preliminary regression coefficients will be obtained
+from a posterior-weighted Poisson fit to exact outcomes. If there are too few
+exact outcomes for that fit, the intercept will be initialized as the logarithm
+of the weighted mean of informative lower bounds, and the remaining
+coefficients will be set to zero. For the negative binomial model, a positive
+method-of-moments dispersion estimate based on exact outcomes will be used
+when available, with 0.25 as the conservative fallback. These quantities are
+starting values only and do not replace maximization of the zero-truncated,
+censored objective.
+
+After the first iteration, the preceding outcome coefficients and
+\texttt{log\_sigma}, when applicable, will be supplied as warm starts. The
+\texttt{max\_iter} and \texttt{relative\_tolerance} elements of
+\texttt{control\$outcome} will be translated to the corresponding
+\texttt{optim()} controls.
+
+An update will be accepted only when \texttt{optim()} reports convergence code
+zero, all parameters and the objective are finite, and the relevant
+$Q_V$ value has not decreased beyond a small numerical tolerance. A failed
+optimization will be retried once from the conservative first-iteration
+values. If the retry also fails, fitting will stop with an informative error
+rather than silently retaining stale parameters.
+
 \section{Automated tests}
 
-The model-matrix, initialization, E-step, and outcome-likelihood infrastructure
-is covered by automated tests implemented with the \texttt{tinytest} package.
-Separate test files cover model matrices, misclassification expansion,
-cross-component compatibility, initialization, expectation calculations, and
+The model-matrix, initialization, control, E-step, capture-model M-step, and
+outcome-likelihood infrastructure is covered by automated tests implemented
+with the \texttt{tinytest} package. Separate test files cover model matrices,
+misclassification expansion, cross-component compatibility, initialization,
+control parsing, expectation calculations, capture-model maximization, and
 outcome log-likelihood calculations.
 
 The existing tests cover capture grids and design matrices, row alignment,
@@ -241,26 +339,34 @@ capture-cell aggregation, including the single-class case and invalid control
 values. Fifteen E-step assertions cover posterior normalization, impossible
 states, cell aggregation, numerical stability, dimensions, and validation.
 
+Thirteen control assertions cover defaults, partial nested overrides, the
+\texttt{verbose} argument, unknown settings, malformed subsections, and
+invalid values. Twelve capture-maximization assertions cover fitted-object
+structure, dimensions, finite coefficients and means, objective evaluation,
+warm starts, invalid inputs, and rank deficiency.
+
 The outcome-likelihood tests compare the Poisson and negative binomial results
 with direct probability calculations for mixed exact, interval-censored,
 right-censored, and missing outcomes. They also verify inclusive interval
 bounds, a right-censoring boundary at one, numerical stability in the far
 right tail, and validation of the mean and dispersion inputs. The complete
-suite now contains 66 passing assertions, of which nine exercise
+suite now contains 91 passing assertions, of which nine exercise
 \texttt{outcome\_loglik\_crc()}.
 
 \section{Required next steps}
 
-The model-matrix, initialization, distribution-independent E-step, and
-outcome-likelihood infrastructure and their automated tests are complete at
-the design level. Development should continue in the following order.
+The model-matrix, initialization, control, distribution-independent E-step,
+capture-model M-step, and outcome-likelihood infrastructure and their
+automated tests are complete at the design level. Development should continue
+in the following order.
 
 \begin{enumerate}
-  \item Implement separate M-step updates for the capture and outcome models,
-  using the posterior state weights and the existing alignment indices.
+  \item Implement and test the outcome-model M-step according to the planned
+  optimization and warm-start strategy above.
 
-  \item Integrate initialization, both M-steps, outcome likelihood evaluation,
-  and \texttt{expectation\_crc()} into the EM iteration.
+  \item Integrate initialization, the capture and outcome M-steps, outcome
+  likelihood evaluation, and \texttt{expectation\_crc()} into the EM
+  iteration, using previous estimates as warm starts.
 
   \item Add convergence controls, numerical safeguards, and diagnostics
   before exposing fitted estimates through user-facing methods.

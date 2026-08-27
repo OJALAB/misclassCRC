@@ -36,6 +36,7 @@ with the following files (currently):
 - `R/model_matrices.R` -- model matrices,
 - `R/initialization.R` -- initialization of model parameters,
 - `R/expectation.R` -- E-step of the EM algorithm,
+- `R/maximization.R` -- capture-model M-step of the EM algorithm,
 - `R/outcome_likelihood.R` -- likelihood function for the outcome model.
 
 `documents/package_specification.pdf` provides an overview

@@ -28,7 +28,7 @@ raw <- capture_mean[matrices$capture_index] *
   matrices$states$misclass_probability * exp(outcome_loglik)
 expected <- raw / ave(raw, matrices$states$observation_id, FUN = sum)
 
-expect_inherits(result, "crc_expectation")
+expect_inherits(result, "crc_estep")
 expect_equal(result$state_weights, expected)
 expect_equal(length(result$state_weights), n_states)
 expect_equal(length(result$cell_counts), n_cells)
