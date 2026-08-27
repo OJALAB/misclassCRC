@@ -17,7 +17,7 @@
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Model-matrix, initialization, E-step, capture-model M-step,
-  and outcome-likelihood implementation addendum}
+  outcome likelihood, and outcome-model M-step implementation addendum}
 \end{center}
 
 \section{Model-matrix infrastructure}
@@ -26,9 +26,10 @@ The package now converts parsed model specifications into complete capture-cell
 grids and aligned observation-level states. The infrastructure includes the
 capture and outcome design matrices, misclassification contributions, and a
 direct mapping from each observation state to its capture cell. Construction
-of these components is integrated into \texttt{crc\_fit()}. The capture-model
-M-step is available as an internal fitting component, although the complete EM
-algorithm has not yet been integrated into \texttt{crc\_fit()}.
+of these components is integrated into \texttt{crc\_fit()}. The capture- and
+outcome-model M-steps are available as internal fitting components, although
+the complete EM algorithm has not yet been integrated into
+\texttt{crc\_fit()}.
 
 \subsection{Capture-model matrix}
 
@@ -198,8 +199,8 @@ to update the expected counts for observed capture histories. Expected counts
 for all-zero histories are set to their current fitted capture-model means.
 The function returns a \texttt{crc\_estep} object containing one
 posterior weight per expanded state and one expected count per capture cell.
-It is not yet called by \texttt{crc\_fit()}, because the outcome M-step and
-the complete EM iteration have not been implemented.
+It is not yet called by \texttt{crc\_fit()}, because the complete EM iteration
+has not been integrated.
 
 \section{Capture-model maximization}
 
@@ -273,9 +274,10 @@ likelihoods, where the required probability is obtained by subtracting two
 survival probabilities. It also handles the case in which both probabilities
 are zero and their log values are negative infinity.
 
-\section{Planned outcome-model maximization}
+\section{Outcome-model maximization}
 
-The outcome component of the M-step will maximize the posterior-weighted
+The internal function \texttt{maximize\_outcome\_crc()} implements the outcome
+component of the M-step by maximizing the posterior-weighted
 expected log-likelihood
 \[
   Q_V(\phi)=\sum_s \tau_s\ell_V(s;\phi),
@@ -285,54 +287,65 @@ posterior state weight, and $\ell_V(s;\phi)$ is provided by
 \texttt{outcome\_loglik\_crc()}. Missing outcomes have zero log-likelihood
 contributions and therefore do not affect this maximization.
 
-The implementation will minimize $-Q_V$ with \texttt{optim()} using
-\texttt{method = "BFGS"}. For \texttt{"ztpois"}, the parameter vector will
-contain only the outcome regression coefficients $\beta$, with
-$\mu_s=\exp(z_s^\mathsf{T}\beta)$. For \texttt{"ztnegbin"}, it will also
-contain \texttt{log\_sigma}; optimizing the logarithm guarantees
+The function minimizes $-Q_V$ with \texttt{optim()} using
+\texttt{method = "BFGS"}. For \texttt{"ztpois"}, the parameter vector
+contains only the outcome regression coefficients $\beta$, with
+$\mu_s=\exp(z_s^\mathsf{T}\beta)$. For \texttt{"ztnegbin"}, it also contains
+\texttt{log\_sigma}; optimizing the logarithm guarantees
 $\sigma>0$ without box constraints. No arbitrary coefficient bounds or
-user-selected optimizer will be exposed initially. Numerical derivatives will
-be used in the first implementation; analytical derivatives may be added if
-profiling demonstrates a material need.
+user-selected optimizer are exposed. The implementation currently uses
+numerical derivatives.
 
-For the first M-step, preliminary regression coefficients will be obtained
-from a posterior-weighted Poisson fit to exact outcomes. If there are too few
-exact outcomes for that fit, the intercept will be initialized as the logarithm
-of the weighted mean of informative lower bounds, and the remaining
-coefficients will be set to zero. For the negative binomial model, a positive
-method-of-moments dispersion estimate based on exact outcomes will be used
-when available, with 0.25 as the conservative fallback. These quantities are
-starting values only and do not replace maximization of the zero-truncated,
-censored objective.
+Preliminary regression coefficients are obtained from a posterior-weighted
+Poisson fit to exact outcomes when there are enough distinct exact
+observations and the preliminary design matrix has full rank. Otherwise, the
+intercept is initialized as the logarithm of the weighted mean of informative
+lower bounds and the remaining coefficients are set to zero. For the negative
+binomial model, a positive method-of-moments dispersion estimate based on
+exact outcomes is used when at least two distinct exact observations are
+available. The estimate is bounded below by $10^{-4}$, while 0.25 is the
+conservative fallback. These quantities are starting values only and do not
+replace maximization of the zero-truncated, censored objective.
 
-After the first iteration, the preceding outcome coefficients and
-\texttt{log\_sigma}, when applicable, will be supplied as warm starts. The
+The function accepts the preceding outcome coefficients and
+\texttt{log\_sigma}, when applicable, as warm starts. Named starting vectors
+are validated and reordered to match the outcome design matrix. The
 \texttt{max\_iter} and \texttt{relative\_tolerance} elements of
-\texttt{control\$outcome} will be translated to the corresponding
-\texttt{optim()} controls.
+\texttt{control\$outcome} can be translated to the corresponding
+\texttt{optim()} controls by the future EM driver.
 
-An update will be accepted only when \texttt{optim()} reports convergence code
-zero, all parameters and the objective are finite, and the relevant
-$Q_V$ value has not decreased beyond a small numerical tolerance. A failed
-optimization will be retried once from the conservative first-iteration
-values. If the retry also fails, fitting will stop with an informative error
-rather than silently retaining stale parameters.
+Only positive-weight states enter the weighted objective, which avoids
+undefined products of zero weights and negative-infinite log likelihoods.
+Invalid likelihood evaluations receive a finite penalty. An update is
+accepted only when \texttt{optim()} reports convergence code zero, the
+objective is finite, and $Q_V$ has not decreased beyond a small numerical
+tolerance. A failed warm-start optimization is retried from the conservative
+default values. The function also rejects rank-deficient informative design
+matrices and non-finite or non-positive fitted means or dispersion values.
+
+The returned \texttt{crc\_outcome\_mstep} object contains the regression
+coefficients, fitted state means, dispersion for the negative binomial model,
+maximized objective, optimizer evaluation counts, retry indicator, and
+convergence indicator.
 
 \section{Automated tests}
 
-The model-matrix, initialization, control, E-step, capture-model M-step, and
+The model-matrix, initialization, control, E-step, both M-steps, and
 outcome-likelihood infrastructure is covered by automated tests implemented
 with the \texttt{tinytest} package. Separate test files cover model matrices,
 misclassification expansion, cross-component compatibility, initialization,
-control parsing, expectation calculations, capture-model maximization, and
-outcome log-likelihood calculations.
+control parsing, expectation calculations, maximization, and outcome
+log-likelihood calculations.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
 initialization, and E-step behavior. Matrix, compatibility, and initialization
 tests exercise the implemented behavior through \texttt{crc\_fit()}; the
-E-step is tested directly because it is not yet integrated into the fitting
-loop.
+E-step and both M-steps are tested directly because they are not yet integrated
+into the fitting loop. Several unit tests currently call \texttt{crc\_fit()}
+only to construct parsed inputs, model matrices, or initialization objects.
+This is acceptable while \texttt{crc\_fit()} performs preparation only, but
+those fixtures must be refactored before the complete EM algorithm is added.
 
 Initialization tests verify normalized, reproducible state weights and their
 capture-cell aggregation, including the single-class case and invalid control
@@ -345,24 +358,34 @@ invalid values. Twelve capture-maximization assertions cover fitted-object
 structure, dimensions, finite coefficients and means, objective evaluation,
 warm starts, invalid inputs, and rank deficiency.
 
+Fourteen outcome-maximization assertions cover the Poisson and negative
+binomial models, coefficient names, positive fitted means and dispersion,
+finite objectives, reordered named warm starts, retry from an invalid warm
+start, invalid state-weight dimensions, and rank-deficient informative design
+matrices. Together, the capture- and outcome-maximization test file contains
+26 assertions.
+
 The outcome-likelihood tests compare the Poisson and negative binomial results
 with direct probability calculations for mixed exact, interval-censored,
 right-censored, and missing outcomes. They also verify inclusive interval
 bounds, a right-censoring boundary at one, numerical stability in the far
 right tail, and validation of the mean and dispersion inputs. The complete
-suite now contains 91 passing assertions, of which nine exercise
+suite now contains 105 passing assertions, of which nine exercise
 \texttt{outcome\_loglik\_crc()}.
 
 \section{Required next steps}
 
 The model-matrix, initialization, control, distribution-independent E-step,
-capture-model M-step, and outcome-likelihood infrastructure and their
-automated tests are complete at the design level. Development should continue
-in the following order.
+both M-steps, and outcome-likelihood infrastructure and their automated tests
+are complete at the design level. Development should continue in the following
+order.
 
 \begin{enumerate}
-  \item Implement and test the outcome-model M-step according to the planned
-  optimization and warm-start strategy above.
+  \item Refactor unit-test fixtures that currently use \texttt{crc\_fit()} only
+  to obtain parsed inputs, model matrices, or initialization objects. These
+  tests should call focused internal preparation components so that completing
+  \texttt{crc\_fit()} does not make unrelated unit tests run the full EM
+  algorithm.
 
   \item Integrate initialization, the capture and outcome M-steps, outcome
   likelihood evaluation, and \texttt{expectation\_crc()} into the EM
@@ -372,6 +395,7 @@ in the following order.
   before exposing fitted estimates through user-facing methods.
 \end{enumerate}
 
+\enlargethispage{\baselineskip}
 EM updates must follow the methodology in the accompanying paper and simulation
 implementation. The existing automated tests establish the initialization,
 matrix, and alignment invariants on which those iterative components depend.
