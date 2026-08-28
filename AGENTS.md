@@ -41,9 +41,7 @@ with the following files (currently):
 - `R/outcome_likelihood.R` -- likelihood function for the outcome model.
 
 `documents/package_specification.pdf` provides an overview
-of what has already been done in the package. In short,
-validation, parsers, and the structure of the main function
-have been created.
+of what has already been done in the package.
 
 ## Code Guidelines
 

@@ -17,7 +17,8 @@
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Preparation, model-matrix, initialization, E-step,
-  capture-model M-step, outcome likelihood, and outcome-model M-step addendum}
+  capture-model M-step, outcome likelihood, outcome-model M-step, and
+  EM-algorithm addendum}
 \end{center}
 
 \section{Preparation interface}
@@ -36,9 +37,10 @@ validated fitting settings.
 existing unfitted result without changing the public interface or result
 structure. The local variables created through \texttt{list2env()} are
 declared explicitly so that static R code analysis can identify their
-bindings. This separation allows the future EM driver to reuse the same
+bindings. This separation allows the internal EM driver to reuse the same
 preparation pipeline while unit tests exercise preparation without invoking
-the complete fitting routine.
+the complete fitting routine. The EM driver is not yet called by
+\texttt{crc\_fit()}.
 
 \section{Model-matrix infrastructure}
 
@@ -48,8 +50,9 @@ capture and outcome design matrices, misclassification contributions, and a
 direct mapping from each observation state to its capture cell. Construction
 of these components is integrated into \texttt{prepare\_crc()}, which is
 called by \texttt{crc\_fit()}. The capture- and outcome-model M-steps are
-available as internal fitting components, although the complete EM algorithm
-has not yet been integrated into \texttt{crc\_fit()}.
+available as internal fitting components and are coordinated by the internal
+EM algorithm, although that algorithm has not yet been integrated into
+\texttt{crc\_fit()}.
 
 \subsection{Capture-model matrix}
 
@@ -122,7 +125,7 @@ of variables is constrained.
 observation state. Matching uses the capture indicators, categorical variables
 in the capture model, and latent class. If the $i$th value is $r$, row $i$ of
 the state data uses row $r$ of the capture-cell grid and capture design matrix.
-The vector avoids repeated joins during future EM iterations. Construction
+The vector avoids repeated joins during EM iterations. Construction
 fails if any state cannot be matched to the grid.
 
 \subsection{Unified model-matrix object}
@@ -190,10 +193,10 @@ settings are rejected. The available settings are:
   \texttt{outcome\$relative\_tolerance}, with defaults 1000 and $10^{-8}$.
 \end{itemize}
 
-The separate logical argument \texttt{verbose} controls user-facing progress
-information and defaults to \texttt{FALSE}. It is validated and stored by
-\texttt{crc\_fit()}; optimizer-specific tracing is not part of the public
-control interface.
+The separate logical argument \texttt{verbose} defaults to \texttt{FALSE}.
+It is validated and stored by \texttt{crc\_fit()} and accepted by the internal
+EM driver. User-facing iteration messages remain to be implemented;
+optimizer-specific tracing is not part of the public control interface.
 
 \section{Expectation step}
 
@@ -222,8 +225,9 @@ to update the expected counts for observed capture histories. Expected counts
 for all-zero histories are set to their current fitted capture-model means.
 The function returns a \texttt{crc\_estep} object containing one
 posterior weight per expanded state and one expected count per capture cell.
-It is not yet called by \texttt{crc\_fit()}, because the complete EM iteration
-has not been integrated.
+It is called by \texttt{em\_iteration\_crc()} during every internal EM
+iteration, but the resulting fitting loop is not yet called by
+\texttt{crc\_fit()}.
 
 \section{Capture-model maximization}
 
@@ -243,8 +247,8 @@ remain visible.
 When no starting values are supplied, all coefficients start at zero, giving
 initial fitted cell means of one. The function also accepts previous
 coefficients as warm starts for later EM iterations. The public capture
-controls will be translated to \texttt{glm.control()} when the EM loop is
-integrated.
+controls are translated to \texttt{glm.control()} by
+\texttt{em\_iteration\_crc()}.
 
 The function rejects invalid counts or starting values, non-convergence,
 rank-deficient design matrices, non-finite coefficients, and non-positive or
@@ -334,8 +338,8 @@ The function accepts the preceding outcome coefficients and
 \texttt{log\_sigma}, when applicable, as warm starts. Named starting vectors
 are validated and reordered to match the outcome design matrix. The
 \texttt{max\_iter} and \texttt{relative\_tolerance} elements of
-\texttt{control\$outcome} can be translated to the corresponding
-\texttt{optim()} controls by the future EM driver.
+\texttt{control\$outcome} are translated to the corresponding
+\texttt{optim()} controls by \texttt{em\_iteration\_crc()}.
 
 Only positive-weight states enter the weighted objective, which avoids
 undefined products of zero weights and negative-infinite log likelihoods.
@@ -351,23 +355,87 @@ coefficients, fitted state means, dispersion for the negative binomial model,
 maximized objective, optimizer evaluation counts, retry indicator, and
 convergence indicator.
 
+\section{EM algorithm}
+
+\subsection{Single iteration}
+
+\texttt{em\_iteration\_crc()} coordinates one complete EM update. It first
+fits the capture model from the current expected capture-cell counts. When an
+outcome model is present, it then fits that model using the current state
+weights and evaluates the resulting outcome log-likelihood for every expanded
+state. Finally, it calls \texttt{expectation\_crc()} with the fitted capture
+means and outcome contributions. Models without an outcome skip the outcome
+maximization and use zero log-likelihood contributions in the E-step.
+
+The function translates the resolved capture and outcome controls to
+\texttt{glm.control()} and \texttt{optim()} controls, respectively. It accepts
+optional starting values for both M-steps. Its \texttt{crc\_em\_iteration}
+result contains the \texttt{capture\_fit}, optional \texttt{outcome\_fit},
+updated \texttt{state\_weights}, and updated \texttt{cell\_counts}.
+
+\subsection{Iteration loop and warm starts}
+
+The loop starts from the \texttt{crc\_initialization} object.
+\texttt{perform\_em\_crc()} repeatedly applies the single-iteration update.
+After the first iteration, the preceding capture coefficients are used as the
+capture-model starting values. The outcome coefficients are likewise reused; for
+\texttt{"ztnegbin"}, the preceding dispersion is appended as
+\texttt{log\_sigma}. The loop stops at convergence or after
+\texttt{control\$em\$max\_iter} iterations.
+
+The returned \texttt{crc\_em\_fit} object contains the final component fits,
+state weights, expected cell counts, number of iterations, convergence
+indicator, and convergence diagnostics. Reaching the iteration limit returns
+the final update with \texttt{converged = FALSE}; the public response to this
+condition will be defined when the loop is integrated into
+\texttt{crc\_fit()}.
+
+\subsection{Convergence criterion}
+
+For iteration $t$, the loop calculates
+\begin{align*}
+  \delta_\tau^{(t)}
+    &= \max_s |\tau_s^{(t)}-\tau_s^{(t-1)}|,\\
+  \delta_Y^{(t)}
+    &= \max_c |\log m_c^{(t)}-\log m_c^{(t-1)}|,\\
+  \delta_V^{(t)}
+    &= \max_s |\log \mu_s^{(t)}-\log \mu_s^{(t-1)}|,\\
+  \delta_\sigma^{(t)}
+    &= |\log \sigma^{(t)}-\log \sigma^{(t-1)}|.
+\end{align*}
+Here $s$ indexes expanded observation states, $c$ indexes capture cells,
+$\tau$ denotes posterior state weights, $m$ denotes fitted capture means, and
+$\mu$ denotes fitted outcome means. The outcome-mean term is omitted when no
+outcome model is present, and the dispersion term is included only for
+\texttt{"ztnegbin"}. Explicitly monitoring dispersion makes the package
+criterion stricter than the simulation implementation, in which dispersion
+was not a separate convergence component.
+
+The overall change is the maximum of the applicable components. Convergence
+requires this value to be finite and strictly smaller than
+\texttt{control\$em\$tolerance}. The first iteration has infinite change
+because no preceding fitted values exist, so at least two iterations are
+required. Log differences provide scale-free, approximately relative changes
+for positive model quantities; state probabilities are compared directly
+because zero is admissible.
+
 \section{Automated tests}
 
-The model-matrix, initialization, control, E-step, both M-steps, and
-outcome-likelihood infrastructure is covered by automated tests implemented
-with the \texttt{tinytest} package. Separate test files cover model matrices,
-misclassification expansion, cross-component compatibility, initialization,
-control parsing, expectation calculations, maximization, and outcome
-log-likelihood calculations.
+The model-matrix, initialization, control, E-step, both M-steps,
+outcome-likelihood, and EM components are covered by automated tests
+implemented with the \texttt{tinytest} package. Separate test files cover
+model matrices, misclassification expansion, cross-component compatibility,
+initialization, control parsing, expectation calculations, maximization,
+outcome log-likelihood calculations, and EM orchestration.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
 initialization, and E-step behavior. Test fixtures for these components now
 call \texttt{prepare\_crc()} directly instead of using \texttt{crc\_fit()} to
-construct parsed inputs, model matrices, or initialization objects. The E-step
-and both M-steps remain tested directly because they are not yet integrated
-into the fitting loop. This separation prevents their unit tests from running
-the future complete EM algorithm.
+construct parsed inputs, model matrices, or initialization objects. The
+E-step and both M-steps remain tested directly, while the dedicated EM tests
+exercise their orchestration without invoking the still-unfitted public
+\texttt{crc\_fit()} interface.
 
 Initialization tests verify normalized, reproducible state weights and their
 capture-cell aggregation, including the single-class case and invalid control
@@ -392,32 +460,39 @@ with direct probability calculations for mixed exact, interval-censored,
 right-censored, and missing outcomes. They also verify inclusive interval
 bounds, a right-censoring boundary at one, numerical stability in the far
 right tail, and validation of the mean and dispersion inputs. The complete
-suite contains 105 passing assertions, of which nine exercise
-\texttt{outcome\_loglik\_crc()}. The preparation refactor retains the same
-datasets, random-number seeds, numerical expectations, error patterns, and
-assertion count. Twelve fixture calls across seven test files now use
-\texttt{prepare\_crc()}, and the model-matrix tests verify the
-\texttt{crcfit\_preparation} class.
+outcome-likelihood test file contains nine assertions.
+
+The dedicated \texttt{test\_em.R} file contains 23 assertions. It verifies
+single-iteration result classes, finite fitted values, positive negative
+binomial dispersion, normalized state weights, and accepted warm starts. It
+also exercises full-loop convergence for negative binomial and Poisson
+outcomes, operation without an outcome model, the convergence-component
+structure, and termination with \texttt{converged = FALSE} after a one-
+iteration limit. The complete suite now contains 128 passing assertions.
 
 \section{Required next steps}
 
 The model-matrix, initialization, control, distribution-independent E-step,
-both M-steps, and outcome-likelihood infrastructure and their automated tests
-are complete at the design level. Development should continue in the following
-order.
+both M-steps, outcome-likelihood infrastructure, internal EM algorithm, and
+their automated tests are complete at the design level. Development should
+continue in the following order.
 
 \begin{enumerate}
-  \item Integrate initialization, the capture and outcome M-steps, outcome
-  likelihood evaluation, and \texttt{expectation\_crc()} into the EM
-  iteration, using previous estimates as warm starts.
+  \item Call \texttt{perform\_em\_crc()} from \texttt{crc\_fit()} and define
+  the fitted public result structure while retaining the parsed specifications
+  and prepared model components needed for interpretation and prediction.
 
-  \item Add convergence controls, numerical safeguards, and diagnostics
-  before exposing fitted estimates through user-facing methods.
+  \item Define the public behavior for an exhausted EM iteration limit and
+  implement user-facing progress messages for \texttt{verbose = TRUE}.
+
+  \item Add end-to-end tests for the public fitting path, including multiple
+  latent classes, misclassification, both outcome distributions, and models
+  without an outcome, before exposing fitted estimates through methods.
 \end{enumerate}
 
-\enlargethispage{\baselineskip}
 EM updates must follow the methodology in the accompanying paper and simulation
 implementation. The existing automated tests establish the initialization,
-matrix, and alignment invariants on which those iterative components depend.
+matrix, alignment, iteration, and convergence invariants on which the public
+fitting interface will depend.
 
 \end{document}
