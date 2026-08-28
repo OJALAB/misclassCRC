@@ -85,8 +85,9 @@ crc_fit(
 - verbose:
 
   A logical value indicating whether progress information should be
-  displayed during model fitting. The default is `FALSE`.
+  displayed during model fitting. The default is `FALSE`. Currently
+  unsupported.
 
 ## Value
 
-An object of class `"crcfit"`.
+An object of class `"crc_fit"`.

@@ -35,7 +35,8 @@ The core code is included in the `R/` folder, with the following files
 - `R/initialization.R` – initialization of model parameters,
 - `R/expectation.R` – E-step of the EM algorithm,
 - `R/maximization.R` – M-step of the EM algorithm,
-- `R/outcome_likelihood.R` – likelihood function for the outcome model.
+- `R/outcome_likelihood.R` – likelihood function for the outcome model,
+- `R/em.R` – the EM loop.
 
 `documents/package_specification.pdf` provides an overview of what has
 already been done in the package.
