@@ -10,19 +10,23 @@ group_matrix <- matrix(
   c(0.8, 0.2, 0.1, 0.9), nrow = 2L, byrow = TRUE,
   dimnames = list(c("A", "B"), c("A", "B"))
 )
-fit_call <- function() crc_fit(
+prepare_call <- function() misclassCRC:::prepare_crc(
   data = data,
   captures = ~ source_1 + source_2 + source_3,
   capture_formula = ~ source_1 + source_2 + source_3 + group + .latent,
+  outcome = NULL,
+  outcome_formula = NULL,
+  outcome_dist = "ztnegbin",
   misclass = list(group = list(matrix = group_matrix, true_if = ~ source_1)),
   latent_classes = 2L,
-  control = list(init_alpha = 12)
+  control = list(init_alpha = 12),
+  verbose = FALSE
 )
 
 set.seed(42)
-fit <- fit_call()
-initialization <- fit$initialization
-matrices <- fit$model_matrices
+preparation <- prepare_call()
+initialization <- preparation$initialization
+matrices <- preparation$model_matrices
 state_sums <- tapply(initialization$state_weights,
   matrices$states$observation_id, sum)
 expected_counts <- numeric(nrow(matrices$capture$cells))
@@ -39,12 +43,21 @@ expect_equal(as.numeric(state_sums), rep(1, nrow(data)))
 expect_equal(initialization$cell_counts, expected_counts)
 expect_equal(initialization$init_alpha, 12)
 set.seed(42)
-expect_equal(fit_call()$initialization, initialization)
+expect_equal(prepare_call()$initialization, initialization)
 
-fit_one <- crc_fit(data, ~ source_1 + source_2 + source_3,
-  ~ source_1 + source_2 + source_3)
-expect_equal(fit_one$initialization$state_weights, rep(1, nrow(data)))
-expect_equal(fit_one$initialization$init_alpha, 20)
-expect_error(crc_fit(data, ~ source_1 + source_2 + source_3,
-  ~ source_1 + source_2 + source_3, control = list(init_alpha = 0)),
+preparation_one <- misclassCRC:::prepare_crc(
+  data, ~ source_1 + source_2 + source_3,
+  ~ source_1 + source_2 + source_3,
+  outcome = NULL, outcome_formula = NULL, outcome_dist = "ztnegbin",
+  misclass = NULL, latent_classes = 1L, control = NULL, verbose = FALSE
+)
+expect_equal(preparation_one$initialization$state_weights, rep(1, nrow(data)))
+expect_equal(preparation_one$initialization$init_alpha, 20)
+expect_error(misclassCRC:::prepare_crc(
+  data, ~ source_1 + source_2 + source_3,
+  ~ source_1 + source_2 + source_3,
+  outcome = NULL, outcome_formula = NULL, outcome_dist = "ztnegbin",
+  misclass = NULL, latent_classes = 1L,
+  control = list(init_alpha = 0), verbose = FALSE
+),
   pattern = "finite positive number")

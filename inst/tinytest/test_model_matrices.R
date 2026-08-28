@@ -6,14 +6,21 @@ data <- data.frame(
   source_3 = c(0L, 0L, 1L, 1L)
 )
 
-fit <- crc_fit(
+preparation <- misclassCRC:::prepare_crc(
   data = data,
   captures = ~ source_1 + source_2 + source_3,
-  capture_formula = ~ source_1 + source_2 + source_3
+  capture_formula = ~ source_1 + source_2 + source_3,
+  outcome = NULL,
+  outcome_formula = NULL,
+  outcome_dist = "ztnegbin",
+  misclass = NULL,
+  latent_classes = 1L,
+  control = NULL,
+  verbose = FALSE
 )
-matrices <- fit$model_matrices
+matrices <- preparation$model_matrices
 
-expect_inherits(fit, "crcfit")
+expect_inherits(preparation, "crcfit_preparation")
 expect_inherits(matrices, "crc_model_matrices")
 expect_equal(dim(matrices$capture$matrix), c(8L, 4L))
 expect_equal(sum(matrices$capture$unobserved), 1L)
@@ -30,15 +37,19 @@ expect_equal(indexed_cells, matrices$states$data[, key, with = FALSE])
 
 data$group <- factor(c("b", "a", "b", "a"), levels = c("b", "a"))
 data$outcome <- c(2, NA, 4, 5)
-fit <- crc_fit(
+preparation <- misclassCRC:::prepare_crc(
   data = data,
   captures = ~ source_1 + source_2 + source_3,
   capture_formula = ~ source_1 + source_2 + source_3 + group + .latent,
   outcome = "outcome",
   outcome_formula = ~ group + .latent,
-  latent_classes = 2L
+  outcome_dist = "ztnegbin",
+  misclass = NULL,
+  latent_classes = 2L,
+  control = NULL,
+  verbose = FALSE
 )
-matrices <- fit$model_matrices
+matrices <- preparation$model_matrices
 
 expect_equal(dim(matrices$capture$matrix), c(32L, 6L))
 expect_equal(nrow(matrices$states$data), 8L)

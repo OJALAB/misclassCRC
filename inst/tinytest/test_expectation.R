@@ -10,14 +10,19 @@ group_matrix <- matrix(
   c(0.8, 0.2, 0.1, 0.9), nrow = 2L, byrow = TRUE,
   dimnames = list(c("A", "B"), c("A", "B"))
 )
-fit <- crc_fit(
+preparation <- misclassCRC:::prepare_crc(
   data = data,
   captures = ~ source_1 + source_2 + source_3,
   capture_formula = ~ source_1 + source_2 + source_3 + group + .latent,
+  outcome = NULL,
+  outcome_formula = NULL,
+  outcome_dist = "ztnegbin",
   misclass = list(group = list(matrix = group_matrix, true_if = ~ source_1)),
-  latent_classes = 2L
+  latent_classes = 2L,
+  control = NULL,
+  verbose = FALSE
 )
-matrices <- fit$model_matrices
+matrices <- preparation$model_matrices
 n_states <- nrow(matrices$states$data)
 n_cells <- nrow(matrices$capture$cells)
 capture_mean <- exp(seq(-1, 1, length.out = n_cells))

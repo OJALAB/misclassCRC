@@ -5,10 +5,14 @@ data <- data.frame(
   source_2 = c(0L, 1L, 1L, 0L),
   source_3 = c(0L, 0L, 1L, 1L)
 )
-fit <- crc_fit(data, ~ source_1 + source_2 + source_3,
-  ~ source_1 + source_2 + source_3)
-matrices <- fit$model_matrices
-counts <- fit$initialization$cell_counts
+preparation <- misclassCRC:::prepare_crc(
+  data, ~ source_1 + source_2 + source_3,
+  ~ source_1 + source_2 + source_3,
+  outcome = NULL, outcome_formula = NULL, outcome_dist = "ztnegbin",
+  misclass = NULL, latent_classes = 1L, control = NULL, verbose = FALSE
+)
+matrices <- preparation$model_matrices
+counts <- preparation$initialization$cell_counts
 result <- misclassCRC:::maximize_capture_crc(matrices, counts)
 
 expect_inherits(result, "crc_capture_mstep")
@@ -43,13 +47,15 @@ outcome_data <- data.frame(
   group = factor(rep(c("a", "b"), 12L)),
   outcome = rep(c(1, 2, 3, 10, 2, 14), 4L)
 )
-outcome_fit <- crc_fit(
+outcome_preparation <- misclassCRC:::prepare_crc(
   outcome_data, ~ source_1 + source_2 + source_3,
   ~ source_1 + source_2 + source_3 + group,
-  outcome = "outcome", outcome_formula = ~ group
+  outcome = "outcome", outcome_formula = ~ group,
+  outcome_dist = "ztnegbin", misclass = NULL, latent_classes = 1L,
+  control = NULL, verbose = FALSE
 )
-outcome_matrices <- outcome_fit$model_matrices
-state_weights <- outcome_fit$initialization$state_weights
+outcome_matrices <- outcome_preparation$model_matrices
+state_weights <- outcome_preparation$initialization$state_weights
 
 poisson_result <- misclassCRC:::maximize_outcome_crc(
   outcome_matrices, state_weights, "ztpois")
@@ -84,9 +90,14 @@ expect_error(misclassCRC:::maximize_outcome_crc(
 
 rank_data <- outcome_data
 rank_data$outcome[rank_data$group == "b"] <- NA_real_
-rank_fit <- crc_fit(rank_data, ~ source_1 + source_2 + source_3,
+rank_preparation <- misclassCRC:::prepare_crc(
+  rank_data, ~ source_1 + source_2 + source_3,
   ~ source_1 + source_2 + source_3 + group,
-  outcome = "outcome", outcome_formula = ~ group)
+  outcome = "outcome", outcome_formula = ~ group,
+  outcome_dist = "ztnegbin", misclass = NULL, latent_classes = 1L,
+  control = NULL, verbose = FALSE
+)
 expect_error(misclassCRC:::maximize_outcome_crc(
-  rank_fit$model_matrices, rank_fit$initialization$state_weights, "ztnegbin"),
+  rank_preparation$model_matrices,
+  rank_preparation$initialization$state_weights, "ztnegbin"),
   pattern = "rank deficient")

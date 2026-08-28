@@ -14,22 +14,33 @@ group_matrix <- matrix(
 )
 
 expect_error(
-  crc_fit(
+  misclassCRC:::prepare_crc(
     data = data,
     captures = ~ source_1 + source_2 + source_3,
     capture_formula = ~ source_1 + source_2 + source_3,
     outcome = "outcome",
-    outcome_formula = ~ region
+    outcome_formula = ~ region,
+    outcome_dist = "ztnegbin",
+    misclass = NULL,
+    latent_classes = 1L,
+    control = NULL,
+    verbose = FALSE
   ),
   pattern = "not included in `capture_formula`"
 )
 
 expect_error(
-  crc_fit(
+  misclassCRC:::prepare_crc(
     data = data,
     captures = ~ source_1 + source_2 + source_3,
     capture_formula = ~ source_1 + source_2 + source_3,
-    misclass = list(group = list(matrix = group_matrix))
+    outcome = NULL,
+    outcome_formula = NULL,
+    outcome_dist = "ztnegbin",
+    misclass = list(group = list(matrix = group_matrix)),
+    latent_classes = 1L,
+    control = NULL,
+    verbose = FALSE
   ),
   pattern = "not used in either model"
 )

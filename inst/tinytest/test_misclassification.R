@@ -16,18 +16,23 @@ contract_matrix <- matrix(
   dimnames = list(c("temp", "perm"), c("temp", "perm"))
 )
 
-fit <- crc_fit(
+preparation <- misclassCRC:::prepare_crc(
   data = data,
   captures = ~ source_1 + source_2 + source_3,
   capture_formula = ~ source_1 + source_2 + source_3 +
     group + contract + .latent,
+  outcome = NULL,
+  outcome_formula = NULL,
+  outcome_dist = "ztnegbin",
   misclass = list(
     group = list(matrix = group_matrix, true_if = ~ source_1),
     contract = list(matrix = contract_matrix, true_if = ~ source_3)
   ),
-  latent_classes = 2L
+  latent_classes = 2L,
+  control = NULL,
+  verbose = FALSE
 )
-matrices <- fit$model_matrices
+matrices <- preparation$model_matrices
 states <- matrices$states
 
 expect_equal(dim(matrices$capture$matrix), c(64L, 7L))

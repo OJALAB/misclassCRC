@@ -16,9 +16,29 @@
 
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
-  {\large Model-matrix, initialization, E-step, capture-model M-step,
-  outcome likelihood, and outcome-model M-step implementation addendum}
+  {\large Preparation, model-matrix, initialization, E-step,
+  capture-model M-step, outcome likelihood, and outcome-model M-step addendum}
 \end{center}
+
+\section{Preparation interface}
+
+The internal function \texttt{prepare\_crc()} now owns the complete pre-fit
+pipeline. It resolves the outcome distribution and control settings, validates
+the public inputs, parses capture indicators, outcomes, formulas, and
+misclassification specifications, performs cross-component compatibility
+checks, constructs the model matrices, and initializes the state weights and
+capture-cell counts. It returns an object of class
+\texttt{crcfit\_preparation} containing the prepared model components and the
+validated fitting settings.
+
+\texttt{crc\_fit()} records the matched call and delegates preparation to
+\texttt{prepare\_crc()}. It then transfers the prepared components into the
+existing unfitted result without changing the public interface or result
+structure. The local variables created through \texttt{list2env()} are
+declared explicitly so that static R code analysis can identify their
+bindings. This separation allows the future EM driver to reuse the same
+preparation pipeline while unit tests exercise preparation without invoking
+the complete fitting routine.
 
 \section{Model-matrix infrastructure}
 
@@ -26,10 +46,10 @@ The package now converts parsed model specifications into complete capture-cell
 grids and aligned observation-level states. The infrastructure includes the
 capture and outcome design matrices, misclassification contributions, and a
 direct mapping from each observation state to its capture cell. Construction
-of these components is integrated into \texttt{crc\_fit()}. The capture- and
-outcome-model M-steps are available as internal fitting components, although
-the complete EM algorithm has not yet been integrated into
-\texttt{crc\_fit()}.
+of these components is integrated into \texttt{prepare\_crc()}, which is
+called by \texttt{crc\_fit()}. The capture- and outcome-model M-steps are
+available as internal fitting components, although the complete EM algorithm
+has not yet been integrated into \texttt{crc\_fit()}.
 
 \subsection{Capture-model matrix}
 
@@ -119,9 +139,10 @@ sequence and returns an object of class \texttt{crc\_model\_matrices} with:
   \item \texttt{capture\_index}, linking state rows to capture-cell rows.
 \end{itemize}
 
-\texttt{crc\_fit()} constructs this object after parsing and compatibility
-validation and stores it as \texttt{model\_matrices}. The returned object
-remains in class \texttt{crcfit\_unfitted} and has \texttt{fitted = FALSE}.
+After parsing and compatibility validation, the preparation object stores this
+component under the name \texttt{model\_matrices}. The value is retained by
+\texttt{crc\_fit()}, whose result remains in class
+\texttt{crcfit\_unfitted} and has \texttt{fitted = FALSE}.
 
 \subsection{Cross-component validation}
 
@@ -146,15 +167,17 @@ State weights are aggregated through the precomputed capture-cell indices.
 Observed cells receive the corresponding weighted counts, while every
 all-zero capture cell receives an initial expected count of one. The resulting
 \texttt{crc\_initialization} object stores the state weights, cell counts, and
-Dirichlet concentration and is retained by \texttt{crc\_fit()}.
+Dirichlet concentration. It is returned by \texttt{prepare\_crc()} and retained
+by \texttt{crc\_fit()}.
 
 \section{Control and progress interface}
 
 \texttt{parse\_control()} resolves the user-supplied \texttt{control} list
 against complete defaults and returns an object of class
-\texttt{crc\_control}. The resolved object is stored by \texttt{crc\_fit()}.
-Partial overrides are supported, while unknown, duplicated, unnamed, and
-invalid settings are rejected. The available settings are:
+\texttt{crc\_control}. The resolved object is stored by
+\texttt{prepare\_crc()} and subsequently by \texttt{crc\_fit()}. Partial
+overrides are supported, while unknown, duplicated, unnamed, and invalid
+settings are rejected. The available settings are:
 
 \begin{itemize}
   \item \texttt{init\_alpha}, the positive Dirichlet concentration, with
@@ -339,13 +362,12 @@ log-likelihood calculations.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
-initialization, and E-step behavior. Matrix, compatibility, and initialization
-tests exercise the implemented behavior through \texttt{crc\_fit()}; the
-E-step and both M-steps are tested directly because they are not yet integrated
-into the fitting loop. Several unit tests currently call \texttt{crc\_fit()}
-only to construct parsed inputs, model matrices, or initialization objects.
-This is acceptable while \texttt{crc\_fit()} performs preparation only, but
-those fixtures must be refactored before the complete EM algorithm is added.
+initialization, and E-step behavior. Test fixtures for these components now
+call \texttt{prepare\_crc()} directly instead of using \texttt{crc\_fit()} to
+construct parsed inputs, model matrices, or initialization objects. The E-step
+and both M-steps remain tested directly because they are not yet integrated
+into the fitting loop. This separation prevents their unit tests from running
+the future complete EM algorithm.
 
 Initialization tests verify normalized, reproducible state weights and their
 capture-cell aggregation, including the single-class case and invalid control
@@ -370,8 +392,12 @@ with direct probability calculations for mixed exact, interval-censored,
 right-censored, and missing outcomes. They also verify inclusive interval
 bounds, a right-censoring boundary at one, numerical stability in the far
 right tail, and validation of the mean and dispersion inputs. The complete
-suite now contains 105 passing assertions, of which nine exercise
-\texttt{outcome\_loglik\_crc()}.
+suite contains 105 passing assertions, of which nine exercise
+\texttt{outcome\_loglik\_crc()}. The preparation refactor retains the same
+datasets, random-number seeds, numerical expectations, error patterns, and
+assertion count. Twelve fixture calls across seven test files now use
+\texttt{prepare\_crc()}, and the model-matrix tests verify the
+\texttt{crcfit\_preparation} class.
 
 \section{Required next steps}
 
@@ -381,12 +407,6 @@ are complete at the design level. Development should continue in the following
 order.
 
 \begin{enumerate}
-  \item Refactor unit-test fixtures that currently use \texttt{crc\_fit()} only
-  to obtain parsed inputs, model matrices, or initialization objects. These
-  tests should call focused internal preparation components so that completing
-  \texttt{crc\_fit()} does not make unrelated unit tests run the full EM
-  algorithm.
-
   \item Integrate initialization, the capture and outcome M-steps, outcome
   likelihood evaluation, and \texttt{expectation\_crc()} into the EM
   iteration, using previous estimates as warm starts.
