@@ -58,10 +58,10 @@ its relative tolerance (default \code{1e-8}).
 Unknown control elements are rejected.}
 
 \item{verbose}{A logical value indicating whether progress information should
-be displayed during model fitting. The default is \code{FALSE}.}
+be displayed during model fitting. The default is \code{FALSE}. Currently unsupported.}
 }
 \value{
-An object of class \code{"crcfit"}.
+An object of class \code{"crc_fit"}.
 }
 \description{
 Fit a Capture-Recapture Model

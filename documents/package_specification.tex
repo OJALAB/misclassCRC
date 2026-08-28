@@ -18,7 +18,7 @@
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Preparation, model-matrix, initialization, E-step,
   capture-model M-step, outcome likelihood, outcome-model M-step, and
-  EM-algorithm addendum}
+  public EM fitting interface}
 \end{center}
 
 \section{Preparation interface}
@@ -33,14 +33,13 @@ capture-cell counts. It returns an object of class
 validated fitting settings.
 
 \texttt{crc\_fit()} records the matched call and delegates preparation to
-\texttt{prepare\_crc()}. It then transfers the prepared components into the
-existing unfitted result without changing the public interface or result
-structure. The local variables created through \texttt{list2env()} are
+\texttt{prepare\_crc()}. It transfers the prepared components into its local
+environment and calls \texttt{perform\_em\_crc()} to fit the model. The local
+variables created through \texttt{list2env()} are
 declared explicitly so that static R code analysis can identify their
-bindings. This separation allows the internal EM driver to reuse the same
-preparation pipeline while unit tests exercise preparation without invoking
-the complete fitting routine. The EM driver is not yet called by
-\texttt{crc\_fit()}.
+bindings. This separation allows unit tests to exercise preparation and the
+internal fitting components independently while the public function provides
+the complete fitting path.
 
 \section{Model-matrix infrastructure}
 
@@ -50,8 +49,7 @@ capture and outcome design matrices, misclassification contributions, and a
 direct mapping from each observation state to its capture cell. Construction
 of these components is integrated into \texttt{prepare\_crc()}, which is
 called by \texttt{crc\_fit()}. The capture- and outcome-model M-steps are
-available as internal fitting components and are coordinated by the internal
-EM algorithm, although that algorithm has not yet been integrated into
+coordinated by the internal EM algorithm, which is now integrated into
 \texttt{crc\_fit()}.
 
 \subsection{Capture-model matrix}
@@ -144,8 +142,7 @@ sequence and returns an object of class \texttt{crc\_model\_matrices} with:
 
 After parsing and compatibility validation, the preparation object stores this
 component under the name \texttt{model\_matrices}. The value is retained by
-\texttt{crc\_fit()}, whose result remains in class
-\texttt{crcfit\_unfitted} and has \texttt{fitted = FALSE}.
+\texttt{crc\_fit()} for interpretation and subsequent prediction.
 
 \subsection{Cross-component validation}
 
@@ -226,8 +223,7 @@ for all-zero histories are set to their current fitted capture-model means.
 The function returns a \texttt{crc\_estep} object containing one
 posterior weight per expanded state and one expected count per capture cell.
 It is called by \texttt{em\_iteration\_crc()} during every internal EM
-iteration, but the resulting fitting loop is not yet called by
-\texttt{crc\_fit()}.
+iteration, including iterations initiated through the public fitting function.
 
 \section{Capture-model maximization}
 
@@ -386,9 +382,16 @@ capture-model starting values. The outcome coefficients are likewise reused; for
 The returned \texttt{crc\_em\_fit} object contains the final component fits,
 state weights, expected cell counts, number of iterations, convergence
 indicator, and convergence diagnostics. Reaching the iteration limit returns
-the final update with \texttt{converged = FALSE}; the public response to this
-condition will be defined when the loop is integrated into
-\texttt{crc\_fit()}.
+the final update with \texttt{converged = FALSE}.
+
+\subsection{Public fitted object}
+
+\texttt{crc\_fit()} stores the EM result as \texttt{em\_fit}, retains the
+validated specifications, model matrices, initialization, call, and input
+data, sets \texttt{fitted = TRUE}, and returns an object of class
+\texttt{crc\_fit}. If the EM iteration limit is exhausted, the final result is
+returned with its non-convergence indicator and a warning is issued. This
+keeps the last estimates available for diagnostic inspection.
 
 \subsection{Convergence criterion}
 
@@ -421,21 +424,19 @@ because zero is admissible.
 
 \section{Automated tests}
 
-The model-matrix, initialization, control, E-step, both M-steps,
-outcome-likelihood, and EM components are covered by automated tests
+The public fitting interface, model-matrix, initialization, control, E-step,
+both M-steps, outcome-likelihood, and EM components are covered by automated tests
 implemented with the \texttt{tinytest} package. Separate test files cover
 model matrices, misclassification expansion, cross-component compatibility,
 initialization, control parsing, expectation calculations, maximization,
-outcome log-likelihood calculations, and EM orchestration.
+outcome log-likelihood calculations, EM orchestration, and public fitting.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
 initialization, and E-step behavior. Test fixtures for these components now
-call \texttt{prepare\_crc()} directly instead of using \texttt{crc\_fit()} to
-construct parsed inputs, model matrices, or initialization objects. The
-E-step and both M-steps remain tested directly, while the dedicated EM tests
-exercise their orchestration without invoking the still-unfitted public
-\texttt{crc\_fit()} interface.
+call \texttt{prepare\_crc()} directly when testing parsed inputs, model
+matrices, or initialization objects. The E-step and both M-steps remain tested
+directly, while the dedicated EM tests exercise their internal orchestration.
 
 Initialization tests verify normalized, reproducible state weights and their
 capture-cell aggregation, including the single-class case and invalid control
@@ -468,26 +469,28 @@ binomial dispersion, normalized state weights, and accepted warm starts. It
 also exercises full-loop convergence for negative binomial and Poisson
 outcomes, operation without an outcome model, the convergence-component
 structure, and termination with \texttt{converged = FALSE} after a one-
-iteration limit. The complete suite now contains 128 passing assertions.
+iteration limit.
 
-\section{Required next steps}
+The dedicated \texttt{test\_crc\_fit.R} file adds 14 end-to-end assertions.
+It covers a converged zero-truncated Poisson outcome model, a model without an
+outcome component, the fitted object and internal component classes, retained
+call and distribution information, and the warning and returned diagnostics
+when the EM iteration limit is exhausted. The complete suite now contains 142
+passing assertions.
 
-The model-matrix, initialization, control, distribution-independent E-step,
-both M-steps, outcome-likelihood infrastructure, internal EM algorithm, and
-their automated tests are complete at the design level. Development should
-continue in the following order.
+\section{Planned next steps}
+
+The core fitting path and its component-level and end-to-end tests are now in
+place. Development should continue with the following main steps.
 
 \begin{enumerate}
-  \item Call \texttt{perform\_em\_crc()} from \texttt{crc\_fit()} and define
-  the fitted public result structure while retaining the parsed specifications
-  and prepared model components needed for interpretation and prediction.
-
-  \item Define the public behavior for an exhausted EM iteration limit and
-  implement user-facing progress messages for \texttt{verbose = TRUE}.
-
-  \item Add end-to-end tests for the public fitting path, including multiple
-  latent classes, misclassification, both outcome distributions, and models
-  without an outcome, before exposing fitted estimates through methods.
+  \item Implement and test a \texttt{predict()} method for overall population,
+  categorical-subpopulation, and latent-class estimates.
+  \item Validate fitting and prediction using the accompanying IAOS submission
+  data and simulation setting.
+  \item Add user-facing methods such as \texttt{print()} and \texttt{summary()}.
+  \item Extend the package documentation, \texttt{NEWS.md}, examples, and
+  vignettes, and implement the remaining progress reporting.
 \end{enumerate}
 
 EM updates must follow the methodology in the accompanying paper and simulation

@@ -30,10 +30,10 @@
 #'
 #' Unknown control elements are rejected.
 #' @param verbose A logical value indicating whether progress information should
-#' be displayed during model fitting. The default is `FALSE`.
+#' be displayed during model fitting. The default is `FALSE`. Currently unsupported.
 #'
 #' @return 
-#' An object of class `"crcfit"`.
+#' An object of class `"crc_fit"`.
 #'
 #' @export
 crc_fit <- function(
@@ -72,10 +72,28 @@ crc_fit <- function(
   list2env(preparation, envir = environment())
   rm(preparation)
 
+  em_fit <- perform_em_crc(
+    model_matrices = model_matrices,
+    initialization = initialization,
+    outcome_dist = outcome_dist,
+    control = control,
+    verbose = verbose
+  )
+
+  if (!em_fit$converged) {
+    warning(
+      "The EM algorithm did not converge after ",
+      em_fit$iterations,
+      " iterations.",
+      call. = FALSE
+    )
+  }
+
   structure(
     list(
       call = call,
       data = data,
+      em_fit = em_fit,
       model_matrices = model_matrices,
       initialization = initialization,
       captures = captures,
@@ -87,9 +105,9 @@ crc_fit <- function(
       latent_classes = latent_classes,
       control = control,
       verbose = verbose,
-      fitted = FALSE
+      fitted = TRUE
     ),
-    class = c("crcfit_unfitted", "crcfit")
+    class = "crc_fit"
   )
 
 }
