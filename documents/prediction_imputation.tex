@@ -1,0 +1,313 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.6cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlist{nosep,leftmargin=1.6em}
+
+\title{Outcome Imputation in \texttt{predict.crc\_fit()}}
+\author{Internal mathematical note}
+\date{28 August 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Purpose and scope}
+
+This note describes the mathematical calculations used by
+\texttt{predict.crc\_fit()} to estimate the total value of the modeled outcome.
+The method combines conditional imputation for observed units with prediction
+for units belonging to the all-zero capture cells. It applies to exact,
+interval-censored, right-censored, and missing positive count outcomes and to
+both outcome distributions supported by the package.
+
+The calculation is performed after the EM algorithm has converged. All model
+parameters and posterior state weights below are therefore evaluated at their
+final fitted values. Hats are omitted where doing so does not cause ambiguity.
+
+\section{State and outcome notation}
+
+Let $i\in S$ index an observed unit and let $s\in\mathcal S_i$ index a
+candidate state of that unit. A state records the candidate true values of
+misclassified categorical variables and the latent class. Write
+\[
+  \tau_{is}
+  =\Pr(s\mid\text{observed information for unit }i)
+\]
+for its final posterior weight. These weights satisfy
+\[
+  \tau_{is}\geq0,
+  \qquad
+  \sum_{s\in\mathcal S_i}\tau_{is}=1.
+\]
+
+For state $s$, the outcome regression provides the linear predictor and mean
+\[
+  \eta_{is}=z_{is}^{\mathsf T}\beta,
+  \qquad
+  \mu_{is}=\exp(\eta_{is}).
+\]
+The parameter $\mu_{is}$ is the mean of an underlying untruncated count $W$.
+The modeled positive outcome is
+\[
+  V=W\mid W\geq1.
+\]
+The underlying distribution is either
+\[
+  W\sim\operatorname{Poisson}(\mu)
+\]
+or
+\[
+  W\sim\operatorname{NB}(\mu,r),
+  \qquad r=\frac{1}{\sigma},
+\]
+under the mean--size parameterization
+\[
+  \operatorname{E}(W)=\mu,
+  \qquad
+  \operatorname{Var}(W)=\mu+\sigma\mu^2.
+\]
+
+Define the survival function
+\[
+  S(q;\mu)=\Pr(W>q\mid\mu).
+\]
+The implementation evaluates $\log S(q;\mu)$ directly through the upper-tail
+interfaces of the Poisson and negative-binomial distribution functions.
+
+\section{Shifted-distribution identities}
+
+Conditional means over censored ranges can be evaluated without explicitly
+summing $w\Pr(W=w)$. For a Poisson random variable,
+\[
+  w\Pr(W=w;\mu)
+  =\mu\Pr(W^\star=w-1;\mu),
+\]
+where $W^\star\sim\operatorname{Poisson}(\mu)$. Consequently,
+\[
+  \sum_{w=l}^{u}w\Pr(W=w)
+  =\mu\Pr(l-1\leq W^\star\leq u-1).
+\]
+
+For a negative-binomial random variable with size $r$ and mean $\mu$,
+\[
+  w\Pr(W=w;\mu,r)
+  =\mu\Pr(W^\star=w-1;\mu^\star,r^\star),
+\]
+where
+\[
+  r^\star=r+1,
+  \qquad
+  \mu^\star=\mu\frac{r+1}{r}.
+\]
+This choice preserves the probability parameter of the negative-binomial
+distribution. The implementation calls this the \emph{shifted} distribution.
+Let $S^\star(q;\mu)$ denote its survival function. For the Poisson model,
+$S^\star$ has the same parameters as $S$; for the negative-binomial model, it
+uses $(\mu^\star,r^\star)$.
+
+The preceding identities imply
+\begin{align*}
+  \operatorname{E}\{W\mathbf 1(W\geq l)\}
+    &=\mu S^\star(l-2;\mu),\\
+  \operatorname{E}\{W\mathbf 1(l\leq W\leq u)\}
+    &=\mu\{S^\star(l-2;\mu)-S^\star(u-1;\mu)\}.
+\end{align*}
+
+\section{Conditional imputation for observed units}
+
+For every observed unit and candidate state, the function constructs
+\[
+  v_{is}^{\mathrm{imp}}
+  =\operatorname{E}(V_i\mid\mathcal O_i,s),
+\]
+where $\mathcal O_i$ denotes the exact, censored, or missing outcome
+information available for unit $i$.
+
+\subsection{Missing outcome}
+
+When the outcome is missing, the only outcome information is the positive
+support of $V$. Since the zero value contributes nothing to
+$\operatorname{E}(W)$,
+\[
+  \operatorname{E}(V\mid\mu)
+  =\operatorname{E}(W\mid W\geq1)
+  =\frac{\mu}{\Pr(W\geq1)}
+  =\frac{\mu}{S(0;\mu)}.
+\]
+The implementation evaluates this as
+\[
+  \exp\{\log\mu-\log S(0;\mu)\},
+\]
+which avoids overflow caused by separately calculating the reciprocal of a
+very small survival probability.
+
+\subsection{Exact outcome}
+
+For an exact observed value $v_i$,
+\[
+  v_{is}^{\mathrm{imp}}
+  =\operatorname{E}(V_i\mid V_i=v_i,s)
+  =v_i.
+\]
+This value is independent of the candidate state. Consequently, posterior
+averaging preserves the observation because
+\[
+  \sum_{s\in\mathcal S_i}\tau_{is}v_i=v_i.
+\]
+
+\subsection{Right-censored outcome}
+
+Suppose the available information is $V_i\geq l_i$. Because $l_i\geq1$,
+conditioning additionally on zero truncation is redundant. The conditional
+mean is
+\begin{align*}
+  \operatorname{E}(W\mid W\geq l)
+  &=\frac{\operatorname{E}\{W\mathbf 1(W\geq l)\}}
+          {\Pr(W\geq l)}\\
+  &=\mu\frac{S^\star(l-2;\mu)}{S(l-1;\mu)}.
+\end{align*}
+The log-scale expression used in the function is
+\[
+  \exp\{\log\mu+\log S^\star(l-2;\mu)-\log S(l-1;\mu)\}.
+\]
+When $l=1$, $S^\star(-1;\mu)=1$, and the result reduces to the ordinary
+zero-truncated mean.
+
+\subsection{Interval-censored outcome}
+
+Suppose that $l_i\leq V_i\leq u_i$, with both endpoints included. The
+denominator of the conditional expectation is
+\[
+  \Pr(l\leq W\leq u)
+  =S(l-1;\mu)-S(u;\mu).
+\]
+Using the shifted-distribution identity, its numerator is
+\[
+  \operatorname{E}\{W\mathbf 1(l\leq W\leq u)\}
+  =\mu\{S^\star(l-2;\mu)-S^\star(u-1;\mu)\}.
+\]
+It follows that
+\[
+  \operatorname{E}(W\mid l\leq W\leq u)
+  =\mu
+   \frac{S^\star(l-2;\mu)-S^\star(u-1;\mu)}
+        {S(l-1;\mu)-S(u;\mu)}.
+\]
+
+Both probability differences are evaluated on the log scale. If
+$a=\log A$ and $b=\log B$ with $A\geq B$, then
+\[
+  \log(A-B)=a+\log\{-\operatorname{expm1}(b-a)\}.
+\]
+This is the operation implemented by \texttt{log\_sub\_crc()}. It avoids
+catastrophic cancellation when two right-tail probabilities are close.
+
+\section{Observed-unit contribution}
+
+Each expanded state represents a fractional expected unit with population
+contribution $\tau_{is}$. Its estimated outcome contribution is
+\[
+  \tau_{is}v_{is}^{\mathrm{imp}}.
+\]
+Summing over states and observed units gives
+\[
+  \widehat T_{\mathrm{obs}}
+  =\sum_{i\in S}\sum_{s\in\mathcal S_i}
+    \tau_{is}v_{is}^{\mathrm{imp}}.
+\]
+The posterior weights already incorporate the capture model,
+misclassification probabilities, and outcome likelihood. Thus, imputation for
+a censored or missing outcome is averaged over uncertainty about its true
+categorical values and latent class.
+
+\section{Contribution from completely unobserved units}
+
+Let $c$ index a complete capture cell with the all-zero capture history. The
+fitted capture model supplies its expected population count
+\[
+  m_c=\exp(x_c^{\mathsf T}\theta).
+\]
+All categorical variables required by the outcome model are present in the
+capture-cell grid. Therefore, the outcome design row $z_c$ and untruncated
+outcome mean
+\[
+  \mu_c=\exp(z_c^{\mathsf T}\beta)
+\]
+can be constructed for every all-zero cell. Since no outcome is observed for
+these units, their expected positive outcome is
+\[
+  \operatorname{E}(V\mid c)
+  =\frac{\mu_c}{S(0;\mu_c)}.
+\]
+The estimated outcome total contributed by cell $c$ is consequently
+\[
+  m_c\frac{\mu_c}{S(0;\mu_c)}.
+\]
+The implementation rejects non-finite or non-positive values of $\mu_c$ and
+evaluates the zero-truncated mean on the log scale.
+
+\section{Overall and subpopulation estimators}
+
+Combining observed and completely unobserved contributions gives
+\[
+  \widehat T
+  =\widehat T_{\mathrm{obs}}
+   +\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}
+      m_c\frac{\mu_c}{S(0;\mu_c)}.
+\]
+The corresponding population-size estimator is
+\[
+  \widehat N
+  =\sum_{i\in S}\sum_{s\in\mathcal S_i}\tau_{is}
+   +\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}m_c
+  =|S|+\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}m_c.
+\]
+
+For a subpopulation $A$ defined by categorical variables, the latent class,
+or both, the function restricts the preceding sums to states and all-zero
+cells belonging to $A$:
+\begin{align*}
+  \widehat N_A
+  &=\sum_{i\in S}\sum_{s\in\mathcal S_i}
+      \tau_{is}\mathbf 1(s\in A)
+    +\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}
+      m_c\mathbf 1(c\in A),\\
+  \widehat T_A
+  &=\sum_{i\in S}\sum_{s\in\mathcal S_i}
+      \tau_{is}v_{is}^{\mathrm{imp}}\mathbf 1(s\in A)
+    +\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}
+      m_c\frac{\mu_c}{S(0;\mu_c)}\mathbf 1(c\in A).
+\end{align*}
+These subgroup estimates add to the corresponding overall estimates when the
+grouping variables define a partition of the modeled population.
+
+\section{Summary of the implemented cases}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Outcome information & Imputed state value\\
+\midrule
+Missing
+  & $\mu/S(0;\mu)$\\
+Exact $v$
+  & $v$\\
+Right-censored at $l$
+  & $\mu S^\star(l-2;\mu)/S(l-1;\mu)$\\
+Interval $[l,u]$
+  & $\mu\{S^\star(l-2;\mu)-S^\star(u-1;\mu)\}/
+     \{S(l-1;\mu)-S(u;\mu)\}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

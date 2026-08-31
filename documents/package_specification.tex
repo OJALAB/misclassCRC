@@ -18,7 +18,7 @@
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Preparation, model-matrix, initialization, E-step,
   capture-model M-step, outcome likelihood, outcome-model M-step, and
-  public EM fitting interface}
+  public fitting and prediction interfaces}
 \end{center}
 
 \section{Preparation interface}
@@ -422,14 +422,92 @@ required. Log differences provide scale-free, approximately relative changes
 for positive model quantities; state probabilities are compared directly
 because zero is admissible.
 
+\section{Prediction interface}
+
+The S3 method \texttt{predict.crc\_fit()} produces overall estimates of the
+population size and, when an outcome model was fitted, the total outcome. Its
+\texttt{by} argument optionally accepts a one-sided formula containing
+untransformed categorical variable names joined by \texttt{+}. The special
+variable \texttt{.latent} may be used when the fitted model has more than one
+latent class. Consequently, formulas such as \texttt{\textasciitilde group},
+\texttt{\textasciitilde .latent}, and
+\texttt{\textasciitilde group + .latent} request categorical, latent-class,
+and combined subpopulation estimates, respectively.
+
+Grouping variables must occur in the capture model and cannot be capture
+indicators. This restriction ensures that every requested subpopulation is
+represented in the complete capture-cell grid, including its all-zero cells.
+Transformed terms, interactions, unknown variables, and formulas containing no
+grouping variables are rejected.
+
+The returned \texttt{crc\_pred} object contains \texttt{population\_size}, the
+overall population-size estimate; \texttt{outcome\_total}, the overall outcome
+estimate or \texttt{NULL} when no outcome model was fitted; and
+\texttt{by\_groups}, a \texttt{data.table} of grouped estimates or
+\texttt{NULL} when \texttt{by = NULL}.
+
+\subsection{Population-size prediction}
+
+For observed units, every expanded state contributes its final posterior
+weight. These weights sum to one within unit. For an all-zero capture cell
+$c$, the fitted capture-model mean $\widehat m_c$ is its estimated population
+count. The overall estimator is therefore
+\[
+  \widehat N
+  =\sum_{i\in S}\sum_{s\in\mathcal S_i}\widehat\tau_{is}
+   +\sum_{c:\,\boldsymbol y_c=\boldsymbol 0}\widehat m_c.
+\]
+Grouped estimates restrict both sums to states and all-zero cells having the
+requested categorical and latent-class values.
+
+\subsection{Outcome imputation and total prediction}
+
+Let $W$ denote the underlying untruncated count with mean $\mu$, and let
+$V=W\mid W\geq1$ denote the modeled outcome. Write
+$S(q;\mu)=\Pr(W>q\mid\mu)$. For the Poisson model, the shifted distribution
+$W^\star$ is again Poisson with mean $\mu$. For the negative-binomial model
+with size $r=1/\sigma$, it has size $r+1$ and mean
+$\mu(r+1)/r$. The implemented conditional outcome value is
+\[
+  v^{\mathrm{imp}}=
+  \begin{cases}
+    \mu/S(0;\mu), & \text{missing},\\
+    v, & \text{exact value }v,\\
+    \mu S^\star(l-2;\mu)/S(l-1;\mu),
+      & \text{right-censored at }l,\\
+    \displaystyle
+    \mu\frac{S^\star(l-2;\mu)-S^\star(u-1;\mu)}
+             {S(l-1;\mu)-S(u;\mu)},
+      & \text{interval-censored on }[l,u].
+  \end{cases}
+\]
+The shifted-survival expressions follow from the Poisson and
+negative-binomial first-moment identities. Survival probabilities, their
+ratios, and their differences are evaluated on the log scale. In particular,
+\texttt{log\_sub\_crc()} is used for interval probabilities to avoid unstable
+subtraction in the right tail.
+
+For an observed state $s$, the outcome contribution is
+$\widehat\tau_s v_s^{\mathrm{imp}}$. For an all-zero cell $c$, the outcome
+design matrix gives $\widehat\mu_c=\exp(z_c^{\mathsf T}\widehat\beta)$, and
+the predicted contribution is
+\[
+  \widehat m_c\frac{\widehat\mu_c}{S(0;\widehat\mu_c)}.
+\]
+The overall total outcome estimator is the sum of all observed-state and
+all-zero-cell contributions. Subpopulation totals are obtained by aggregating
+the same contributions over the requested grouping variables. Predicted means
+for all-zero cells are required to be finite and strictly positive.
+
 \section{Automated tests}
 
-The public fitting interface, model-matrix, initialization, control, E-step,
-both M-steps, outcome-likelihood, and EM components are covered by automated tests
-implemented with the \texttt{tinytest} package. Separate test files cover
-model matrices, misclassification expansion, cross-component compatibility,
-initialization, control parsing, expectation calculations, maximization,
-outcome log-likelihood calculations, EM orchestration, and public fitting.
+The public fitting and prediction interfaces, model-matrix, initialization,
+control, E-step, both M-steps, outcome-likelihood, and EM components are covered
+by automated tests implemented with the \texttt{tinytest} package. Separate
+test files cover model matrices, misclassification expansion, cross-component
+compatibility, initialization, control parsing, expectation calculations,
+maximization, outcome log-likelihood calculations, EM orchestration, public
+fitting, and prediction.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
@@ -475,27 +553,40 @@ The dedicated \texttt{test\_crc\_fit.R} file adds 14 end-to-end assertions.
 It covers a converged zero-truncated Poisson outcome model, a model without an
 outcome component, the fitted object and internal component classes, retained
 call and distribution information, and the warning and returned diagnostics
-when the EM iteration limit is exhausted. The complete suite now contains 142
+when the EM iteration limit is exhausted.
+
+The dedicated \texttt{test\_predict.R} file contains 27 assertions. It covers
+the zero-truncated Poisson and negative binomial outcome models; exact, missing,
+right-censored, and interval-censored outcomes; overall, categorical,
+latent-class, and combined estimates; and reconciliation of grouped estimates
+with the corresponding overall estimates. It also verifies prediction after a
+non-converged fit, prediction without an outcome model, the returned list
+structure, invalid grouping specifications and fitted objects, and numerical
+stability for right-tail calculations. The complete suite now contains 169
 passing assertions.
 
 \section{Planned next steps}
 
-The core fitting path and its component-level and end-to-end tests are now in
-place. Development should continue with the following main steps.
+The core fitting and prediction paths are now in place. Development should
+continue with the following main steps.
 
 \begin{enumerate}
-  \item Implement and test a \texttt{predict()} method for overall population,
-  categorical-subpopulation, and latent-class estimates.
-  \item Validate fitting and prediction using the accompanying IAOS submission
-  data and simulation setting.
+  \item Validate fitting and prediction against one deterministic replication
+  of the accompanying IAOS simulation, comparing overall and occupation-level
+  estimates with the original implementation before running a broader study.
+  \item Expand the user-facing documentation. This includes
+  \texttt{crc\_fit()} and the initial documentation of
+  \texttt{predict.crc\_fit()}, with examples, details of their arguments and
+  returned objects, grouping rules, and guidance on interpretation.
   \item Add user-facing methods such as \texttt{print()} and \texttt{summary()}.
-  \item Extend the package documentation, \texttt{NEWS.md}, examples, and
+  \item Extend \texttt{NEWS.md}, examples, and
   vignettes, and implement the remaining progress reporting.
 \end{enumerate}
 
 EM updates must follow the methodology in the accompanying paper and simulation
-implementation. The existing automated tests establish the initialization,
-matrix, alignment, iteration, and convergence invariants on which the public
-fitting interface will depend.
+implementation. The next development step is integration validation against the
+IAOS simulation implementation and data. The existing automated tests establish
+the fitting, prediction, matrix, alignment, iteration, and convergence invariants
+needed for that comparison.
 
 \end{document}
