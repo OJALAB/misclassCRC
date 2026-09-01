@@ -77,6 +77,7 @@ perform_em_crc <- function(
   cell_counts <- initialization$cell_counts
   previous <- NULL
   converged <- FALSE
+  stable_iterations <- 0L
 
   for (iter in seq_len(control$em$max_iter)) {
     capture_start <- if (is.null(previous)) {
@@ -108,37 +109,33 @@ perform_em_crc <- function(
 
     changes <- c(
       state_weights = Inf,
-      capture_mean = Inf,
-      outcome_mean = if (is.null(current$outcome_fit)) NA_real_ else Inf,
-      sigma = if (is.null(current$outcome_fit$sigma)) NA_real_ else Inf
+      cell_counts = Inf
     )
 
     if (!is.null(previous)) {
       changes["state_weights"] <- max(abs(
         current$state_weights - previous$state_weights
       ))
-      changes["capture_mean"] <- max(abs(
-        log(current$capture_fit$fitted_mean) -
-          log(previous$capture_fit$fitted_mean)
-      ))
-      if (!is.null(current$outcome_fit)) {
-        changes["outcome_mean"] <- max(abs(
-          log(current$outcome_fit$fitted_mean) -
-            log(previous$outcome_fit$fitted_mean)
-        ))
-      }
-      if (!is.null(current$outcome_fit$sigma)) {
-        changes["sigma"] <- abs(
-          log(current$outcome_fit$sigma) -
-            log(previous$outcome_fit$sigma)
-        )
-      }
+
+      scale <- pmax(1, previous$cell_counts)
+      changes["cell_counts"] <- max(
+        abs(
+          current$cell_counts - previous$cell_counts
+        ) /
+          scale
+      )
     }
 
-    maximum <- max(changes, na.rm = TRUE)
-    converged <- is.finite(maximum) &&
-      maximum < control$em$tolerance
+    maximum <- max(changes)
+    if (is.finite(maximum) && maximum < control$em$tolerance) {
+      stable_iterations <- stable_iterations + 1L
+    } else {
+      stable_iterations <- 0L
+    }
 
+    converged <- stable_iterations >= 3L
+
+    cat("Iter: ", iter, ", Change: ", maximum, "\n", sep = "")
     previous <- current
     state_weights <- current$state_weights
     cell_counts <- current$cell_counts

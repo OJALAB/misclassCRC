@@ -399,28 +399,24 @@ For iteration $t$, the loop calculates
 \begin{align*}
   \delta_\tau^{(t)}
     &= \max_s |\tau_s^{(t)}-\tau_s^{(t-1)}|,\\
-  \delta_Y^{(t)}
-    &= \max_c |\log m_c^{(t)}-\log m_c^{(t-1)}|,\\
-  \delta_V^{(t)}
-    &= \max_s |\log \mu_s^{(t)}-\log \mu_s^{(t-1)}|,\\
-  \delta_\sigma^{(t)}
-    &= |\log \sigma^{(t)}-\log \sigma^{(t-1)}|.
+  \delta_n^{(t)}
+    &= \max_c
+      \frac{|n_c^{(t)}-n_c^{(t-1)}|}
+           {\max\{1,n_c^{(t-1)}\}}.
 \end{align*}
 Here $s$ indexes expanded observation states, $c$ indexes capture cells,
-$\tau$ denotes posterior state weights, $m$ denotes fitted capture means, and
-$\mu$ denotes fitted outcome means. The outcome-mean term is omitted when no
-outcome model is present, and the dispersion term is included only for
-\texttt{"ztnegbin"}. Explicitly monitoring dispersion makes the package
-criterion stricter than the simulation implementation, in which dispersion
-was not a separate convergence component.
+$\tau$ denotes posterior state weights, and $n$ denotes expected capture-cell
+counts. These are the quantities passed from the E-step into the following EM
+iteration. The scaling gives an absolute change for counts below one and an
+approximately relative change for larger counts. It avoids making convergence
+depend directly on weakly identified distribution parameters or fitted means
+close to zero.
 
-The overall change is the maximum of the applicable components. Convergence
+The overall change is $\max\{\delta_\tau^{(t)},\delta_n^{(t)}\}$. Convergence
 requires this value to be finite and strictly smaller than
-\texttt{control\$em\$tolerance}. The first iteration has infinite change
-because no preceding fitted values exist, so at least two iterations are
-required. Log differences provide scale-free, approximately relative changes
-for positive model quantities; state probabilities are compared directly
-because zero is admissible.
+\texttt{control\$em\$tolerance} for three consecutive iterations. The first
+iteration has infinite change because no preceding E-step output exists. State
+probabilities are compared directly because zero is admissible.
 
 \section{Prediction interface}
 
@@ -527,12 +523,13 @@ invalid values. Twelve capture-maximization assertions cover fitted-object
 structure, dimensions, finite coefficients and means, objective evaluation,
 warm starts, invalid inputs, and rank deficiency.
 
-Fourteen outcome-maximization assertions cover the Poisson and negative
+Outcome-maximization assertions cover the Poisson and negative
 binomial models, coefficient names, positive fitted means and dispersion,
 finite objectives, reordered named warm starts, retry from an invalid warm
 start, invalid state-weight dimensions, and rank-deficient informative design
-matrices. Together, the capture- and outcome-maximization test file contains
-26 assertions.
+matrices. The file also verifies aggregation of equivalent likelihood
+contributions. Together, the capture- and outcome-maximization test file
+contains 27 assertions.
 
 The outcome-likelihood tests compare the Poisson and negative binomial results
 with direct probability calculations for mixed exact, interval-censored,
@@ -541,7 +538,7 @@ bounds, a right-censoring boundary at one, numerical stability in the far
 right tail, and validation of the mean and dispersion inputs. The complete
 outcome-likelihood test file contains nine assertions.
 
-The dedicated \texttt{test\_em.R} file contains 23 assertions. It verifies
+The dedicated \texttt{test\_em.R} file contains 25 assertions. It verifies
 single-iteration result classes, finite fitted values, positive negative
 binomial dispersion, normalized state weights, and accepted warm starts. It
 also exercises full-loop convergence for negative binomial and Poisson
@@ -562,8 +559,27 @@ latent-class, and combined estimates; and reconciliation of grouped estimates
 with the corresponding overall estimates. It also verifies prediction after a
 non-converged fit, prediction without an outcome model, the returned list
 structure, invalid grouping specifications and fitted objects, and numerical
-stability for right-tail calculations. The complete suite now contains 169
+stability for right-tail calculations. The complete suite now contains 172
 passing assertions.
+
+\section{Deterministic simulation replication}
+
+A deterministic replication of the simulation accompanying the IAOS paper is
+implemented in \texttt{simulations/IAOS.R}, with data-generation support in
+\texttt{simulations/functions.R}. Given a fixed random-number seed, it
+constructs the finite population and confusion matrix, generates the capture
+indicators and validation sample, applies outcome missingness and censoring,
+fits the package model, and compares the resulting population-size and outcome-
+total estimates with their known values, both overall and by occupation group.
+
+This replication provides an end-to-end integration check of data generation,
+misclassification correction, latent-class capture modeling, censored-outcome
+modeling, EM fitting, and prediction. It also records the generated-data
+summary and EM convergence diagnostics. The exercise shows that the package
+reproduces the general numerical and statistical behavior of the earlier IAOS
+simulation implementation. Because it is a single deterministic replication,
+it is not by itself evidence about finite-sample bias, variability, or
+coverage.
 
 \section{Planned next steps}
 
@@ -571,9 +587,11 @@ The core fitting and prediction paths are now in place. Development should
 continue with the following main steps.
 
 \begin{enumerate}
-  \item Validate fitting and prediction against one deterministic replication
-  of the accompanying IAOS simulation, comparing overall and occupation-level
-  estimates with the original implementation before running a broader study.
+  \item Conduct a broader simulation study over many independent replications.
+  It should summarize overall and occupation-level bias and root mean squared
+  error, convergence and failure rates, numerical boundary behavior, and
+  computation time, with comparisons against the earlier IAOS implementation
+  where appropriate.
   \item Expand the user-facing documentation. This includes
   \texttt{crc\_fit()} and the initial documentation of
   \texttt{predict.crc\_fit()}, with examples, details of their arguments and
@@ -584,9 +602,11 @@ continue with the following main steps.
 \end{enumerate}
 
 EM updates must follow the methodology in the accompanying paper and simulation
-implementation. The next development step is integration validation against the
-IAOS simulation implementation and data. The existing automated tests establish
-the fitting, prediction, matrix, alignment, iteration, and convergence invariants
-needed for that comparison.
+implementation. The deterministic IAOS replication now establishes the initial
+end-to-end integration check. The next development step is the broader
+simulation study needed to evaluate finite-sample performance and computational
+reliability across repeated samples. The existing automated tests establish the
+fitting, prediction, matrix, alignment, iteration, and convergence invariants
+needed for that study.
 
 \end{document}

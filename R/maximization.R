@@ -22,14 +22,11 @@ maximize_capture_crc <- function(
     stop("Expected capture-cell counts are invalid.", call. = FALSE)
   }
 
-  if (is.null(start)) {
-    start <- numeric(n_parameters)
-  }
-
   if (
-    length(start) != n_parameters ||
-      anyNA(start) ||
-      any(!is.finite(start))
+    !is.null(start) &&
+      (length(start) != n_parameters ||
+        anyNA(start) ||
+        any(!is.finite(start)))
   ) {
     stop("Capture-model starting values are invalid.", call. = FALSE)
   }
@@ -73,6 +70,48 @@ maximize_capture_crc <- function(
     class = "crc_capture_mstep"
   )
 
+}
+
+#' Aggregate Equivalent Outcome-Likelihood Contributions
+#'
+#' @import data.table
+#'
+#' @noRd
+aggregate_outcome_crc <- function(
+  matrix,
+  outcome,
+  state_weights
+) {
+  keep <- state_weights > 0 & outcome$status != "missing"
+  x_names <- paste0(".x", seq_len(ncol(matrix)))
+
+  data <- as.data.table(matrix[keep, , drop = FALSE])
+  setnames(data, x_names)
+  data[, `:=`(
+    .lower = outcome$lower[keep],
+    .upper = outcome$upper[keep],
+    .status = outcome$status[keep],
+    .weight = state_weights[keep]
+  )]
+
+  by_names <- c(x_names, ".lower", ".upper", ".status")
+  aggregated <- data[,
+    list(.weight = sum(get(".weight"))),
+    by = by_names
+  ]
+
+  aggregated_matrix <- as.matrix(aggregated[, x_names, with = FALSE])
+  colnames(aggregated_matrix) <- colnames(matrix)
+
+  list(
+    matrix = aggregated_matrix,
+    outcome = data.table(
+      lower = aggregated[[".lower"]],
+      upper = aggregated[[".upper"]],
+      status = aggregated[[".status"]]
+    ),
+    weights = aggregated[[".weight"]]
+  )
 }
 
 #' Maximize the Outcome-Model Objective
@@ -180,11 +219,17 @@ maximize_outcome_crc <- function(
     start <- start[expected_names]
   }
 
+  objective_data <- aggregate_outcome_crc(
+    matrix = matrix,
+    outcome = outcome,
+    state_weights = state_weights
+  )
+
   penalty <- 1e100
 
   objective <- function(parameters) {
     beta <- parameters[seq_len(n_parameters)]
-    mu <- exp(drop(matrix %*% beta))
+    mu <- exp(drop(objective_data$matrix %*% beta))
     sigma <- if (outcome_dist == "ztnegbin") {
       exp(parameters[n_parameters + 1L])
     } else {
@@ -192,14 +237,26 @@ maximize_outcome_crc <- function(
     }
 
     loglik <- tryCatch(
-      outcome_loglik_crc(outcome, mu, outcome_dist, sigma),
+      withCallingHandlers(
+        outcome_loglik_crc(objective_data$outcome, mu, outcome_dist, sigma),
+        warning = function(warning) {
+          message <- conditionMessage(warning)
+          known_underflow <-
+            grepl("pbeta(*, log.p=TRUE)", message, fixed = TRUE) &&
+            grepl("underflow to -Inf", message, fixed = TRUE)
+
+          if (known_underflow) {
+            invokeRestart("muffleWarning")
+          }
+        }
+      ),
       error = function(error) NULL
     )
-    if (is.null(loglik) || any(!is.finite(loglik[active]))) {
+    if (is.null(loglik) || any(!is.finite(loglik))) {
       return(penalty)
     }
 
-    value <- -sum(state_weights[active] * loglik[active])
+    value <- -sum(objective_data$weights * loglik)
     if (is.finite(value)) value else penalty
   }
 
@@ -273,5 +330,4 @@ maximize_outcome_crc <- function(
     ),
     class = "crc_outcome_mstep"
   )
-
 }

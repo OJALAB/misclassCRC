@@ -52,8 +52,8 @@ expect_true(fit$converged)
 expect_true(fit$iterations > 1L)
 expect_true(fit$convergence$maximum < preparation$control$em$tolerance)
 expect_equal(names(fit$convergence$changes),
-  c("state_weights", "capture_mean", "outcome_mean", "sigma"))
-expect_true(is.finite(fit$convergence$changes[["sigma"]]))
+  c("state_weights", "cell_counts"))
+expect_true(all(is.finite(fit$convergence$changes)))
 
 poisson <- prepare_case("ztpois")
 poisson_fit <- misclassCRC:::perform_em_crc(
@@ -62,7 +62,9 @@ poisson_fit <- misclassCRC:::perform_em_crc(
 )
 expect_true(poisson_fit$converged)
 expect_null(poisson_fit$outcome_fit$sigma)
-expect_true(is.na(poisson_fit$convergence$changes[["sigma"]]))
+expect_equal(names(poisson_fit$convergence$changes),
+  c("state_weights", "cell_counts"))
+expect_true(all(is.finite(poisson_fit$convergence$changes)))
 
 without_outcome <- prepare_case("ztpois", with_outcome = FALSE)
 without_outcome_fit <- misclassCRC:::perform_em_crc(
@@ -71,7 +73,9 @@ without_outcome_fit <- misclassCRC:::perform_em_crc(
 )
 expect_true(without_outcome_fit$converged)
 expect_null(without_outcome_fit$outcome_fit)
-expect_true(is.na(without_outcome_fit$convergence$changes[["outcome_mean"]]))
+expect_equal(names(without_outcome_fit$convergence$changes),
+  c("state_weights", "cell_counts"))
+expect_true(all(is.finite(without_outcome_fit$convergence$changes)))
 
 limited <- prepare_case("ztnegbin", control = list(em = list(max_iter = 1L)))
 limited_fit <- misclassCRC:::perform_em_crc(

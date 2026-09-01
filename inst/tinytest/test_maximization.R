@@ -73,6 +73,24 @@ expect_true(is.finite(negbin_result$sigma) && negbin_result$sigma > 0)
 expect_null(names(negbin_result$sigma))
 expect_true(is.finite(negbin_result$objective))
 
+mu_full <- exp(drop(
+  outcome_matrices$outcome_matrix %*% negbin_result$coefficients
+))
+loglik_full <- misclassCRC:::outcome_loglik_crc(
+  outcome_matrices$states$outcome,
+  mu_full,
+  "ztnegbin",
+  negbin_result$sigma
+)
+active <- state_weights > 0
+objective_full <- sum(state_weights[active] * loglik_full[active])
+
+expect_equal(
+  negbin_result$objective,
+  objective_full,
+  tolerance = 1e-8
+)
+
 warm_start <- c(log_sigma = log(negbin_result$sigma),
   rev(negbin_result$coefficients))
 warm_result <- misclassCRC:::maximize_outcome_crc(

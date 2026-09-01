@@ -31,6 +31,8 @@ The core code is included in the `R/` folder,
 with the following files (currently):
 
 - `R/crc_fit.R` -- the main function,
+- `R/predict.R` -- prediction of population size
+and outcome total,
 - `R/validation.R` -- validation of input data,
 - `R/parsers.R` -- parsers of input data,
 - `R/model_matrices.R` -- model matrices,
