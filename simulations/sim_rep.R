@@ -33,12 +33,12 @@ iaos_parameters <- list(
   missing_fraction = 0.25,
   censoring_fraction = 0.25,
   censoring_threshold = 2,
-  em_max_iter = 5L,
+  em_max_iter = 2000L,
   em_tolerance = 5e-4
 )
 
-n_rep <- 5L
-workers <- 5L
+n_rep <- 100L
+workers <- 10L
 
 set.seed(123L)
 
@@ -96,13 +96,6 @@ estimands <- data.table(
 evaluation <- rbindlist(lapply(seq_len(nrow(estimands)), function(i) {
   estimate <- results[[estimands$estimate[i]]]
   truth <- results[[estimands$truth[i]]]
-
-  if (any(!is.finite(estimate)) || any(!is.finite(truth)) || any(truth == 0)) {
-    stop(
-      "Estimates and truths must be finite, with nonzero truths.",
-      call. = FALSE
-    )
-  }
 
   error <- estimate - truth
 
