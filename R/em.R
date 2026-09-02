@@ -135,7 +135,6 @@ perform_em_crc <- function(
 
     converged <- stable_iterations >= 3L
 
-    cat("Iter: ", iter, ", Change: ", maximum, "\n", sep = "")
     previous <- current
     state_weights <- current$state_weights
     cell_counts <- current$cell_counts
