@@ -29,23 +29,25 @@ iaos_parameters <- list(
   p_easy = c(0.8, 0.2, 0.1),
   p_hard = c(0.1, 0.8, 0.6),
   prob_hard = c(0.4, 0.3, 0.2, 0.3, 0.4, 0.3, 0.2, 0.3, 0.4),
-  validation_size = 1000L,
+  validation_size = 2000L,
   missing_fraction = 0.25,
   censoring_fraction = 0.25,
   censoring_threshold = 2,
-  em_max_iter = 2000L,
+  em_max_iter = 2500L,
   em_tolerance = 5e-4
 )
 
 n_rep <- 100L
 workers <- 10L
 
-set.seed(123L)
+set.seed(42L)
 
-plan(multisession, workers = workers)
+# plan(multisession, workers = workers)
 
 results <- rbindlist(lapply(1:n_rep, function(i) {
 
+  cat("Iter:", i, "\n")
+  
   generated <- generate_iaos_data(
     population = population,
     confusion_matrix = confusion_matrix,
@@ -80,7 +82,7 @@ results <- rbindlist(lapply(1:n_rep, function(i) {
     outcome_total = overall_prediction$outcome_total
   )
 
-}) |> progressify() |> futurize(seed = TRUE))
+})) #|> progressify() |> futurize(seed = TRUE))
 
 results[, `:=` (
   true_population_size = rep(nrow(population), n_rep),
@@ -107,3 +109,5 @@ evaluation <- rbindlist(lapply(seq_len(nrow(estimands)), function(i) {
     RMSE = sqrt(mean(error^2))
   )
 }))
+
+save(evaluation, file = "simulations/evaluation.RData")
