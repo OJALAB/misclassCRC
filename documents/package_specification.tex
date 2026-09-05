@@ -18,7 +18,7 @@
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Preparation, model-matrix, initialization, E-step,
   capture-model M-step, outcome likelihood, outcome-model M-step, and
-  public fitting and prediction interfaces}
+  public fitting, prediction, printing, and summary interfaces}
 \end{center}
 
 \section{Preparation interface}
@@ -495,6 +495,30 @@ all-zero-cell contributions. Subpopulation totals are obtained by aggregating
 the same contributions over the requested grouping variables. Predicted means
 for all-zero cells are required to be finite and strictly positive.
 
+\section{Printing and summarizing fitted objects}
+
+The S3 method \texttt{print.crc\_fit()} provides a minimal display of a fitted
+\texttt{crc\_fit} object. It reports the number of observed units, capture
+sources, latent classes, misclassified variables, outcome distribution, and EM
+convergence status. The method uses only information stored in the fitted
+object; it does not call \texttt{predict()} or calculate population-size and
+outcome-total estimates. It returns the fitted object invisibly.
+
+The S3 method \texttt{summary.crc\_fit()} constructs an object of class
+\texttt{summary.crc\_fit}. This object contains the stored call; model
+dimensions and components; concise descriptions of the misclassification
+specifications; capture-model formula and coefficients; optional outcome-model
+formula, coefficients, and dispersion; and EM convergence diagnostics. It
+does not calculate predictions.
+
+The corresponding \texttt{print.summary.crc\_fit()} method displays this
+information in sections for the call, model structure, misclassification,
+capture model, optional outcome model, and EM algorithm. Its \texttt{digits}
+argument controls the number of significant digits shown for coefficients,
+dispersion, and convergence measures. The default is three fewer than the
+global \texttt{digits} option, with a minimum of three. The method returns the
+summary object invisibly.
+
 \section{Automated tests}
 
 The public fitting and prediction interfaces, model-matrix, initialization,
@@ -562,7 +586,13 @@ structure, invalid grouping specifications and fitted objects, and numerical
 stability for right-tail calculations. The complete suite now contains 172
 passing assertions.
 
-\section{Deterministic simulation replication}
+The newly implemented methods for \texttt{crc\_fit} and
+\texttt{summary.crc\_fit} are not yet covered by dedicated tests. These tests
+should be added after the corresponding \texttt{crc\_pred} methods are
+implemented, so that the complete set of print and summary interfaces can be
+tested consistently.
+
+\section{Simulation studies}
 
 A deterministic replication of the simulation accompanying the IAOS paper is
 implemented in \texttt{simulations/IAOS.R}, with data-generation support in
@@ -577,9 +607,12 @@ misclassification correction, latent-class capture modeling, censored-outcome
 modeling, EM fitting, and prediction. It also records the generated-data
 summary and EM convergence diagnostics. The exercise shows that the package
 reproduces the general numerical and statistical behavior of the earlier IAOS
-simulation implementation. Because it is a single deterministic replication,
-it is not by itself evidence about finite-sample bias, variability, or
-coverage.
+simulation implementation.
+
+A broader 100-replication simulation study is implemented in
+\texttt{simulations/sim\_rep.R}. Using reproducible parallel random-number
+generation, it reports mean estimates, mean and relative bias, and root mean
+squared error for the overall population size and outcome total.
 
 \section{Planned next steps}
 
@@ -587,26 +620,24 @@ The core fitting and prediction paths are now in place. Development should
 continue with the following main steps.
 
 \begin{enumerate}
-  \item Conduct a broader simulation study over many independent replications.
-  It should summarize overall and occupation-level bias and root mean squared
-  error, convergence and failure rates, numerical boundary behavior, and
-  computation time, with comparisons against the earlier IAOS implementation
-  where appropriate.
+  \item Implement \texttt{print()}, \texttt{summary()}, and the corresponding
+  summary print method for objects of class \texttt{crc\_pred}.
+  \item Add dedicated tests for the print and summary methods for
+  \texttt{crc\_fit}, \texttt{summary.crc\_fit}, \texttt{crc\_pred}, and the
+  resulting prediction-summary class. The tests should cover optional model
+  components, convergence status, numerical formatting, output structure, and
+  invisible return values.
   \item Expand the user-facing documentation. This includes
   \texttt{crc\_fit()} and the initial documentation of
   \texttt{predict.crc\_fit()}, with examples, details of their arguments and
   returned objects, grouping rules, and guidance on interpretation.
-  \item Add user-facing methods such as \texttt{print()} and \texttt{summary()}.
   \item Extend \texttt{NEWS.md}, examples, and
   vignettes, and implement the remaining progress reporting.
 \end{enumerate}
 
-EM updates must follow the methodology in the accompanying paper and simulation
-implementation. The deterministic IAOS replication now establishes the initial
-end-to-end integration check. The next development step is the broader
-simulation study needed to evaluate finite-sample performance and computational
-reliability across repeated samples. The existing automated tests establish the
-fitting, prediction, matrix, alignment, iteration, and convergence invariants
-needed for that study.
+EM updates must follow the accompanying paper and simulation implementation.
+The next development step is to implement the print and summary methods for
+\texttt{crc\_pred}, followed by dedicated tests for the complete set of fitted
+and predicted-object methods.
 
 \end{document}
