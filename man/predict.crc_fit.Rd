@@ -30,3 +30,17 @@ when no outcome model was fitted),
 Computes estimates of the population size and,
 when an outcome model was fitted, the total outcome.
 }
+\seealso{
+Other fitting functions:
+\code{\link[=crc_fit]{crc_fit()}},
+\code{\link[=print.crc_fit]{print.crc_fit()}},
+\code{\link[=print.summary.crc_fit]{print.summary.crc_fit()}},
+\code{\link[=summary.crc_fit]{summary.crc_fit()}}
+
+Other prediction functions:
+\code{\link[=print.crc_pred]{print.crc_pred()}},
+\code{\link[=print.summary.crc_pred]{print.summary.crc_pred()}},
+\code{\link[=summary.crc_pred]{summary.crc_pred()}}
+}
+\concept{fitting functions}
+\concept{prediction functions}

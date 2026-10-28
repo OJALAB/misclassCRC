@@ -9,6 +9,8 @@
 #' @return 
 #' `x`, invisibly.
 #' 
+#' @family fitting functions
+#' 
 #' @export
 print.crc_fit <- function(
   x,
@@ -66,12 +68,15 @@ print.crc_fit <- function(
 #' Print a Comprehensive Summary of a Capture-Recapture
 #' Model Fit
 #' 
+#' 
 #' @param x An object of class `"summary.crc_fit"`.
 #' @param digits The number of significant digits to display.
 #' @param ... Additional arguments. Currently unused.
 #' 
 #' @return
 #' `x`, invisibly.
+#' 
+#' @family fitting functions
 #' 
 #' @export
 print.summary.crc_fit <- function(
@@ -117,6 +122,115 @@ print.summary.crc_fit <- function(
   line("Maximum change", x$convergence$maximum)
   line("State-weight change", x$convergence$changes[["state_weights"]])
   line("Cell-count change", x$convergence$changes[["cell_counts"]])
+
+  invisible(x)
+
+}
+
+#' Print Capture-Recapture Predictions
+#' 
+#' Displays the population-size and outcome-total estimates computed by
+#' [predict.crc_fit()], including grouped estimates when requested.
+#' 
+#' @param x An object of class `"crc_pred"`.
+#' @param digits The number of significant digits to display.
+#' @param ... Additional arguments. Currently unused.
+#' 
+#' @return
+#' `x`, invisibly.
+#' 
+#' @family prediction functions
+#' 
+#' @export
+print.crc_pred <- function(
+  x,
+  digits = max(3L, getOption("digits") - 3L),
+  ...
+) {
+
+  format_value <- function(value) {
+    format(value, digits = digits, big.mark = ",", scientific = FALSE, trim = TRUE)
+  }
+
+  values <- c(
+    "Population size:" = format_value(x$population_size),
+    "Outcome total:" = if (is.null(x$outcome_total)) {
+      "not modeled"
+    } else {
+      format_value(x$outcome_total)
+    }
+  )
+
+  if (!is.null(x$by_groups)) {
+    groups <- setdiff(
+      names(x$by_groups),
+      c("population_size", "outcome_total")
+    )
+    values <- c(
+      values,
+      "Grouping variables:" = paste(groups, collapse = ", "),
+      "Groups:" = format_value(nrow(x$by_groups))
+    )
+  }
+
+  cat("Capture-recapture prediction\n\n")
+  cat(sprintf("%-25s%s\n", names(values), unname(values)), sep = "")
+
+  if (!is.null(x$by_groups)) {
+    cat("\nGrouped estimates:\n")
+    print(x$by_groups, digits = digits)
+  }
+
+  invisible(x)
+
+}
+
+#' Print a Summary of Capture-Recapture Predictions
+#'
+#' @param x An object of class `"summary.crc_pred"`, as returned by
+#' [summary.crc_pred()].
+#' @param digits The number of significant digits to display.
+#' @param ... Additional arguments. Currently unused.
+#'
+#' @return
+#' `x`, invisibly.
+#' 
+#' @family prediction functions
+#'
+#' @export
+print.summary.crc_pred <- function(
+  x,
+  digits = max(3L, getOption("digits") - 3L),
+  ...
+) {
+  line <- function(label, value) {
+    value <- format(
+      value, digits = digits, big.mark = ",", scientific = FALSE, trim = TRUE
+    )
+    cat(sprintf("  %-25s%s\n", paste0(label, ":"), value), sep = "")
+  }
+
+  labels <- c(
+    population_size = "Population size",
+    outcome_total = "Outcome total",
+    mean_outcome = "Mean outcome per unit"
+  )
+
+  cat("Capture-recapture prediction summary\n\nOverall estimates:\n")
+
+  for (name in names(x$overall)) {
+    line(labels[[name]], x$overall[[name]])
+  }
+  if (!"outcome_total" %in% names(x$overall)) {
+    line("Outcome total", "not modeled")
+  }
+
+  if (!is.null(x$by_groups)) {
+    cat("\nGrouped estimates:\n")
+    line("Grouping variables", paste(x$groups, collapse = ", "))
+    line("Groups", nrow(x$by_groups))
+    print(x$by_groups, digits = digits)
+  }
 
   invisible(x)
 

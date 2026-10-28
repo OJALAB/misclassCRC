@@ -37,7 +37,7 @@ iaos_parameters <- list(
   missing_fraction = 0.25,
   censoring_fraction = 0.25,
   censoring_threshold = 2,
-  em_max_iter = 2000L,
+  em_max_iter = 10L, # change it later
   em_tolerance = 5e-4
 )
 

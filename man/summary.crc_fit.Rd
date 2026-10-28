@@ -17,3 +17,11 @@ An object of class \code{"summary.crc_fit"}.
 \description{
 Summarize a Capture-Recapture Model Fit
 }
+\seealso{
+Other fitting functions:
+\code{\link[=crc_fit]{crc_fit()}},
+\code{\link[=predict.crc_fit]{predict.crc_fit()}},
+\code{\link[=print.crc_fit]{print.crc_fit()}},
+\code{\link[=print.summary.crc_fit]{print.summary.crc_fit()}}
+}
+\concept{fitting functions}

@@ -34,6 +34,8 @@
 #'
 #' @return 
 #' An object of class `"crc_fit"`.
+#' 
+#' @family fitting functions
 #'
 #' @export
 crc_fit <- function(

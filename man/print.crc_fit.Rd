@@ -18,3 +18,11 @@
 Displays a concise description of a model fitted by \code{\link[=crc_fit]{crc_fit()}},
 including its main components and convergence status.
 }
+\seealso{
+Other fitting functions:
+\code{\link[=crc_fit]{crc_fit()}},
+\code{\link[=predict.crc_fit]{predict.crc_fit()}},
+\code{\link[=print.summary.crc_fit]{print.summary.crc_fit()}},
+\code{\link[=summary.crc_fit]{summary.crc_fit()}}
+}
+\concept{fitting functions}

@@ -21,3 +21,11 @@ Model Fit}
 Print a Comprehensive Summary of a Capture-Recapture
 Model Fit
 }
+\seealso{
+Other fitting functions:
+\code{\link[=crc_fit]{crc_fit()}},
+\code{\link[=predict.crc_fit]{predict.crc_fit()}},
+\code{\link[=print.crc_fit]{print.crc_fit()}},
+\code{\link[=summary.crc_fit]{summary.crc_fit()}}
+}
+\concept{fitting functions}

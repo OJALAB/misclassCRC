@@ -21,6 +21,9 @@
 #' 
 #' @import data.table
 #' 
+#' @family fitting functions
+#' @family prediction functions
+#' 
 #' @export
 predict.crc_fit <- function(
   object,

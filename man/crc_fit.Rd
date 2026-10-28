@@ -66,3 +66,11 @@ An object of class \code{"crc_fit"}.
 \description{
 Fit a Capture-Recapture Model
 }
+\seealso{
+Other fitting functions:
+\code{\link[=predict.crc_fit]{predict.crc_fit()}},
+\code{\link[=print.crc_fit]{print.crc_fit()}},
+\code{\link[=print.summary.crc_fit]{print.summary.crc_fit()}},
+\code{\link[=summary.crc_fit]{summary.crc_fit()}}
+}
+\concept{fitting functions}

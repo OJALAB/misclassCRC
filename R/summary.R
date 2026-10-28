@@ -2,7 +2,12 @@
 #'
 #' @param object An object of class `"crc_fit"`.
 #' @param ... Additional arguments. Currently unused.
-#' @return An object of class `"summary.crc_fit"`.
+#' 
+#' @return
+#' An object of class `"summary.crc_fit"`.
+#' 
+#' @family fitting functions
+#' 
 #' @export
 summary.crc_fit <- function(
   object,
@@ -72,6 +77,73 @@ summary.crc_fit <- function(
       iterations = object$em_fit$iterations
     ),
     class = "summary.crc_fit"
+  )
+
+}
+
+#' Summarize Capture-Recapture Predictions
+#' 
+#' @import data.table
+#' 
+#' @param object An object of class `"crc_pred"`, as returned by
+#' [predict.crc_fit()].
+#' @param ... Additional arguments. Currently unused.
+#' 
+#' @return
+#' An object of class `"summary.crc_pred"`.
+#' 
+#' @family prediction functions
+#' 
+#' @export
+summary.crc_pred <- function(
+  object,
+  ...
+) {
+
+  overall <- c(population_size = object$population_size)
+  if (!is.null(object$outcome_total)) {
+    overall <- c(
+      overall,
+      outcome_total = object$outcome_total,
+      mean_outcome = object$outcome_total / object$population_size
+    )
+  }
+
+  groups <- character()
+  by_groups <- NULL
+
+  if (!is.null(object$by_groups)) {
+    by_groups <- copy(object$by_groups)
+    groups <- setdiff(names(by_groups), c("population_size", "outcome_total"))
+    by_groups[,
+      "population_share" := get("population_size") / object$population_size
+    ]
+    if (!is.null(object$outcome_total)) {
+      by_groups[,
+        c("outcome_share", "mean_outcome") := list(
+          get("outcome_total") / object$outcome_total,
+          get("outcome_total") / get("population_size")
+        )
+      ]
+    }
+    measures <- c(
+      "population_size",
+      "population_share",
+      "outcome_total",
+      "outcome_share",
+      "mean_outcome"
+    )
+    setcolorder(by_groups, c(groups, intersect(measures, names(by_groups))))
+    by_groups <- by_groups[]
+  }
+
+  structure(
+    list(
+      overall = overall,
+      groups = groups,
+      by_groups = by_groups
+    ),
+    class = "summary.crc_pred"
   )
 
 }

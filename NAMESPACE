@@ -2,8 +2,11 @@
 
 S3method(predict,crc_fit)
 S3method(print,crc_fit)
+S3method(print,crc_pred)
 S3method(print,summary.crc_fit)
+S3method(print,summary.crc_pred)
 S3method(summary,crc_fit)
+S3method(summary,crc_pred)
 export(crc_fit)
 import(data.table)
 importFrom(stats,dnbinom)

@@ -519,15 +519,93 @@ dispersion, and convergence measures. The default is three fewer than the
 global \texttt{digits} option, with a minimum of three. The method returns the
 summary object invisibly.
 
+\section{Printing and summarizing predictions}
+
+The S3 method \texttt{print.crc\_pred()} displays a \texttt{crc\_pred} object.
+It reports the overall population-size estimate and the overall outcome total,
+or \texttt{not modeled} when no outcome model was fitted. When grouped
+estimates are present, it also reports the grouping variables and the number
+of groups and prints the \texttt{by\_groups} table. Its \texttt{digits}
+argument has the same default as \texttt{print.summary.crc\_fit()}. Estimates
+are formatted with thousands separators and without scientific notation. The
+method returns the prediction object invisibly.
+
+The grouping variables are recovered as the columns of \texttt{by\_groups}
+other than \texttt{population\_size} and \texttt{outcome\_total}. Consequently,
+no additional metadata are stored in \texttt{crc\_pred} objects, and their
+documented list structure remains unchanged.
+
+The S3 method \texttt{summary.crc\_pred()} constructs an object of class
+\texttt{summary.crc\_pred} containing:
+
+\begin{itemize}
+  \item \texttt{overall}, a named numeric vector with
+  \texttt{population\_size} and, when an outcome model was fitted,
+  \texttt{outcome\_total} and \texttt{mean\_outcome};
+  \item \texttt{groups}, the names of the grouping variables, or an empty
+  character vector when \texttt{by = NULL};
+  \item \texttt{by\_groups}, the grouped estimates extended by derived
+  columns, or \texttt{NULL} when \texttt{by = NULL}.
+\end{itemize}
+
+For a group $h$ with estimated population size $\widehat N_h$ and estimated
+outcome total $\widehat T_h$, the derived quantities are
+\[
+  \frac{\widehat N_h}{\widehat N}, \qquad
+  \frac{\widehat T_h}{\widehat T}, \qquad
+  \frac{\widehat T_h}{\widehat N_h},
+\]
+stored as \texttt{population\_share}, \texttt{outcome\_share}, and
+\texttt{mean\_outcome}, respectively. The overall mean outcome is
+$\widehat T/\widehat N$. Outcome-based columns are omitted when no outcome
+model was fitted. The columns are ordered as grouping variables, population
+size and share, and outcome total, share, and mean. These quantities are
+transformations of the existing estimates; no further prediction is performed.
+
+The grouped table is copied before the derived columns are added by reference,
+so the original \texttt{crc\_pred} object is not modified. After these
+additions, the table is returned through \texttt{by\_groups[]}. This resets the
+\texttt{data.table} flag that would otherwise suppress the first automatic
+printing of the table at the console.
+
+The corresponding \texttt{print.summary.crc\_pred()} method displays the
+overall estimates, including the mean outcome per unit when available, and,
+for grouped predictions, the grouping variables, the number of groups, and the
+extended table. Its \texttt{digits} argument and formatting follow
+\texttt{print.crc\_pred()}. The method returns the summary object invisibly.
+
+\section{Documentation cross-references}
+
+The help pages of the exported functions are linked through
+\texttt{roxygen2} \texttt{@family} tags, which generate their \emph{See Also}
+sections. Two families are defined:
+
+{\raggedright
+\begin{itemize}
+  \item \texttt{fitting functions}: \texttt{crc\_fit()},
+  \texttt{print.crc\_fit()}, \texttt{summary.crc\_fit()},
+  \texttt{print.summary.crc\_fit()}, and \texttt{predict.crc\_fit()};
+  \item \texttt{prediction functions}: \texttt{predict.crc\_fit()},
+  \texttt{print.crc\_pred()}, \texttt{summary.crc\_pred()}, and
+  \texttt{print.summary.crc\_pred()}.
+\end{itemize}
+\par}
+
+Since \texttt{predict.crc\_fit()} belongs to both families, its help page
+connects the fitting and prediction interfaces. A \texttt{@family} tag absorbs
+all subsequent text until the next tag. It must therefore be placed after the
+description paragraph of a documentation block.
+
 \section{Automated tests}
 
-The public fitting and prediction interfaces, model-matrix, initialization,
-control, E-step, both M-steps, outcome-likelihood, and EM components are covered
-by automated tests implemented with the \texttt{tinytest} package. Separate
-test files cover model matrices, misclassification expansion, cross-component
-compatibility, initialization, control parsing, expectation calculations,
-maximization, outcome log-likelihood calculations, EM orchestration, public
-fitting, and prediction.
+The public fitting, prediction, printing, and summary interfaces, as well as
+the model-matrix, initialization, control, E-step, both M-steps,
+outcome-likelihood, and EM components, are covered by automated tests
+implemented with the \texttt{tinytest} package. Separate test files cover
+model matrices, misclassification expansion, cross-component compatibility,
+initialization, control parsing, expectation calculations, maximization,
+outcome log-likelihood calculations, EM orchestration, public fitting,
+prediction, and the print and summary methods.
 
 The existing tests cover capture grids and design matrices, row alignment,
 factor levels, all-zero cells, misclassification expansion, compatibility,
@@ -583,14 +661,30 @@ latent-class, and combined estimates; and reconciliation of grouped estimates
 with the corresponding overall estimates. It also verifies prediction after a
 non-converged fit, prediction without an outcome model, the returned list
 structure, invalid grouping specifications and fitted objects, and numerical
-stability for right-tail calculations. The complete suite now contains 172
-passing assertions.
+stability for right-tail calculations.
 
-The newly implemented methods for \texttt{crc\_fit} and
-\texttt{summary.crc\_fit} are not yet covered by dedicated tests. These tests
-should be added after the corresponding \texttt{crc\_pred} methods are
-implemented, so that the complete set of print and summary interfaces can be
-tested consistently.
+The dedicated \texttt{test\_methods.R} file contains 82 assertions for the
+print and summary methods of \texttt{crc\_fit}, \texttt{summary.crc\_fit},
+\texttt{crc\_pred}, and \texttt{summary.crc\_pred}. Its fixtures include a
+negative binomial model with two latent classes and censored outcomes, a
+converged Poisson model, a model without an outcome component, a
+non-converged one-iteration fit, and a model with a misclassified variable.
+The tests verify invisible and unchanged return values, the presence of
+optional sections only when the corresponding components exist, convergence
+labels, the \texttt{digits} argument, and the formatting of large totals with
+thousands separators and without scientific notation. For the summary objects,
+they verify element and column names, column order, coefficients copied from
+the fitted object, misclassification descriptions, group shares summing to
+one, mean outcomes, and the absence of by-reference modification of the
+original prediction object.
+
+Printed output is checked through selected lines rather than complete
+transcripts, because the formatting of \texttt{data.table} objects may change
+between versions. The suppressed first automatic printing of the grouped
+summary table is not tested, since it occurs only for top-level console
+printing and cannot be reproduced within a test file without relying on
+\texttt{data.table} internals. The complete suite now contains 254 passing
+assertions.
 
 \section{Simulation studies}
 
@@ -616,28 +710,25 @@ squared error for the overall population size and outcome total.
 
 \section{Planned next steps}
 
-The core fitting and prediction paths are now in place. Development should
-continue with the following main steps.
+The core fitting and prediction paths, together with the complete set of
+print and summary methods for fitted and predicted objects and their tests, are
+now in place. Development should continue with the following main steps.
 
 \begin{enumerate}
-  \item Implement \texttt{print()}, \texttt{summary()}, and the corresponding
-  summary print method for objects of class \texttt{crc\_pred}.
-  \item Add dedicated tests for the print and summary methods for
-  \texttt{crc\_fit}, \texttt{summary.crc\_fit}, \texttt{crc\_pred}, and the
-  resulting prediction-summary class. The tests should cover optional model
-  components, convergence status, numerical formatting, output structure, and
-  invisible return values.
   \item Expand the user-facing documentation. This includes
   \texttt{crc\_fit()} and the initial documentation of
   \texttt{predict.crc\_fit()}, with examples, details of their arguments and
-  returned objects, grouping rules, and guidance on interpretation.
+  returned objects, grouping rules, and guidance on interpretation. In
+  particular, the \texttt{misclass} argument of \texttt{crc\_fit()} requires
+  a description of the confusion-matrix format and of \texttt{true\_if}.
+  Description paragraphs added to existing documentation blocks must precede
+  their \texttt{@family} tags.
   \item Extend \texttt{NEWS.md}, examples, and
   vignettes, and implement the remaining progress reporting.
 \end{enumerate}
 
 EM updates must follow the accompanying paper and simulation implementation.
-The next development step is to implement the print and summary methods for
-\texttt{crc\_pred}, followed by dedicated tests for the complete set of fitted
-and predicted-object methods.
+The next development step is to expand the user-facing documentation of
+\texttt{crc\_fit()} and \texttt{predict.crc\_fit()}.
 
 \end{document}
