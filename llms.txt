@@ -19,7 +19,15 @@ Work on this package is supported by the OPUS 27 grant no.
 ## Use of AI Tools
 
 Some elements of the package were designed with the support of OpenAI
-Codex and StatsClaw.
+Codex, Claude Code, and StatsClaw.
+
+## References
+
+Struzik, A. (2026). [Estimation of job vacancy statistics under
+misclassification and missing data using
+capture-recapture](https://ojalab.ue.poznan.pl/misclassCRC/references/Struzik-RSS-2026.pdf).
+Royal Statistical Society 2026 International Conference, Bournemouth,
+United Kingdom.
 
 # Package index
 
@@ -31,8 +39,14 @@ Codex and StatsClaw.
   : Predict Population Size and Outcome Total
 - [`print(`*`<crc_fit>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.crc_fit.md)
   : Print a Capture-Recapture Model Fit
+- [`print(`*`<crc_pred>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.crc_pred.md)
+  : Print Capture-Recapture Predictions
 - [`print(`*`<summary.crc_fit>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.summary.crc_fit.md)
   : Print a Comprehensive Summary of a Capture-Recapture Model Fit
+- [`print(`*`<summary.crc_pred>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.summary.crc_pred.md)
+  : Print a Summary of Capture-Recapture Predictions
 - [`summary(`*`<crc_fit>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/summary.crc_fit.md)
   : Summarize a Capture-Recapture Model Fit
+- [`summary(`*`<crc_pred>`*`)`](https://ojalab.ue.poznan.pl/misclassCRC/reference/summary.crc_pred.md)
+  : Summarize Capture-Recapture Predictions
 

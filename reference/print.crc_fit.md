@@ -24,3 +24,11 @@ print(x, ...)
 ## Value
 
 `x`, invisibly.
+
+## See also
+
+Other fitting functions:
+[`crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/crc_fit.md),
+[`predict.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/predict.crc_fit.md),
+[`print.summary.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.summary.crc_fit.md),
+[`summary.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/summary.crc_fit.md)

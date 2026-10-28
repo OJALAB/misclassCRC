@@ -91,3 +91,11 @@ crc_fit(
 ## Value
 
 An object of class `"crc_fit"`.
+
+## See also
+
+Other fitting functions:
+[`predict.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/predict.crc_fit.md),
+[`print.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.crc_fit.md),
+[`print.summary.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/print.summary.crc_fit.md),
+[`summary.crc_fit()`](https://ojalab.ue.poznan.pl/misclassCRC/reference/summary.crc_fit.md)

@@ -19,4 +19,12 @@ Work on this package is supported by the OPUS 27 grant no.
 ## Use of AI Tools
 
 Some elements of the package were designed with the support of OpenAI
-Codex and StatsClaw.
+Codex, Claude Code, and StatsClaw.
+
+## References
+
+Struzik, A. (2026). [Estimation of job vacancy statistics under
+misclassification and missing data using
+capture-recapture](https://ojalab.ue.poznan.pl/misclassCRC/references/Struzik-RSS-2026.pdf).
+Royal Statistical Society 2026 International Conference, Bournemouth,
+United Kingdom.
