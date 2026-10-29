@@ -30,5 +30,6 @@ Codex, Claude Code, and StatsClaw.
 
 Struzik, A. (2026). [Estimation of job vacancy statistics under
 misclassification and missing data using
-capture-recapture](references/Struzik-RSS-2026.pdf). Royal Statistical
-Society 2026 International Conference, Bournemouth, United Kingdom.
+capture-recapture](https://github.com/OJALAB/misclassCRC/blob/main/references/Struzik-RSS-2026.pdf).
+Royal Statistical Society 2026 International Conference, Bournemouth,
+United Kingdom.
