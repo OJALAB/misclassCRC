@@ -25,9 +25,7 @@ build_capture_matrix <- function(
       return(misclass$specifications[[variable]]$levels)
     }
 
-    x <- data[[variable]]
-
-    if (is.factor(x)) levels(x) else unique(x)
+    levels(factor(data[[variable]]))
   }
 
   grid_values <- setNames(
@@ -345,6 +343,21 @@ build_model_matrices <- function(
     misclass,
     latent_classes
   )
+  categorical_names <- setdiff(
+    names(capture$cells),
+    c(captures$names, ".latent")
+  )
+
+  for (variable in categorical_names) {
+    set(
+      states$data,
+      j = variable,
+      value = factor(
+        states$data[[variable]],
+        levels = levels(capture$cells[[variable]])
+      )
+    )
+  }
   states <- expand_all_misclass_states(states, misclass)
 
   structure(

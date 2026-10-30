@@ -17,8 +17,9 @@
 \begin{center}
   {\Large\bfseries CRC Package Interface Specification}\\[3pt]
   {\large Preparation, model-matrix, initialization, E-step,
-  capture-model M-step, outcome likelihood, outcome-model M-step, and
-  public fitting, prediction, printing, and summary interfaces}
+  capture-model M-step, outcome likelihood, outcome-model M-step,
+  public fitting, prediction, printing, and summary interfaces, and
+  user-facing documentation}
 \end{center}
 
 \section{Preparation interface}
@@ -57,7 +58,11 @@ coordinated by the internal EM algorithm, which is now integrated into
 \texttt{build\_capture\_matrix()} constructs the Cartesian product of all
 capture histories, categorical levels used by the capture model, and latent
 classes. For misclassified variables, true-category levels and their ordering
-are obtained from the corresponding confusion matrices. The function returns:
+are obtained from the corresponding confusion matrices. For all other
+categorical variables, the levels are given by \texttt{levels(factor(x))}.
+Unused factor levels are therefore dropped, the order of the remaining factor
+levels is preserved, and character variables receive sorted levels. The first
+level is the reference level of the design matrices. The function returns:
 
 \begin{itemize}
   \item \texttt{cells}, the complete capture-model cell grid;
@@ -79,6 +84,32 @@ An observation identifier maps every expanded row back to its original unit.
 Only variables used by the capture or outcome model are retained in the state
 data. Recorded values of variables subject to misclassification are stored
 separately for evaluation of their confusion-matrix contributions.
+
+\subsection{Alignment of categorical levels}
+
+Before the misclassification expansion, \texttt{build\_model\_matrices()}
+converts every categorical variable of the capture-cell grid in the state data
+to a factor with exactly the levels of the grid. The state data, the
+capture-cell grid, and the grid rows used for all-zero cells in
+\texttt{predict.crc\_fit()} therefore share the same levels and reference
+levels. This alignment is required for two reasons:
+
+\begin{itemize}
+  \item An unused factor level would otherwise produce a capture cell without
+  observed units, which leads to fitted rates numerically equal to zero in
+  the capture-model M-step, and a zero column in the outcome design matrix,
+  which is rejected as rank deficient.
+  \item The outcome design matrix for all-zero cells in
+  \texttt{predict.crc\_fit()} is multiplied by the fitted outcome
+  coefficients by position. If the state data and the grid used different
+  reference levels, as previously happened for character variables whose
+  first value was not first in alphabetical order, the outcome totals would
+  be silently incorrect.
+\end{itemize}
+
+Misclassified variables are also converted, which is harmless because their
+observed levels are validated against the confusion matrix and their values
+are subsequently replaced by the candidate true levels.
 
 \subsection{Misclassified-variable expansion}
 
@@ -574,7 +605,51 @@ for grouped predictions, the grouping variables, the number of groups, and the
 extended table. Its \texttt{digits} argument and formatting follow
 \texttt{print.crc\_pred()}. The method returns the summary object invisibly.
 
-\section{Documentation cross-references}
+\section{User-facing documentation}
+
+\subsection{Help page of \texttt{crc\_fit()}}
+
+The \texttt{roxygen2} block of \texttt{crc\_fit()} now provides a complete
+help page. It contains:
+
+\begin{itemize}
+  \item a description of the model and a reference to
+  \texttt{predict.crc\_fit()} for population-size and outcome-total
+  estimation;
+  \item argument descriptions stating the rules enforced by the validation
+  and parsing functions. These include the requirements for capture
+  indicators, the admissible terms of \texttt{capture\_formula} and
+  \texttt{outcome\_formula}, the handling of categorical levels, the
+  interpretation of the single-column and lower--upper forms of
+  \texttt{outcome}, the meaning of $\mu$ and $\sigma$ for
+  \texttt{"ztnegbin"}, and a recommendation to set the random seed when
+  \texttt{latent\_classes > 1};
+  \item a description of the \texttt{misclass} argument, covering the
+  confusion-matrix format (rows are true categories, columns are observed
+  categories, rows sum to one, identical and identically ordered row and
+  column names), the optional \texttt{true\_if} formula, the treatment of the
+  confusion matrices as known, and the conditional independence of several
+  misclassification mechanisms;
+  \item a \texttt{@return} section listing all components of the
+  \texttt{crc\_fit} object;
+  \item references to Baffour et al.\ (2021), Br\"ann\"as (1992), and
+  Struzik (2026);
+  \item an example that simulates a population with three sources, a
+  character covariate, and an outcome with missing values, fits the model,
+  and computes grouped estimates. It runs in less than one second.
+\end{itemize}
+
+The algorithmic details of the EM algorithm are deliberately not repeated on
+the help page; they are described in this specification and are intended for
+a future vignette. Equations use plain-text alternatives in
+\texttt{\textbackslash eqn\{\}}, references use
+\texttt{\textbackslash doi\{\}}, and links to other packages use the form
+\texttt{\textbackslash link[package:topic]\{function()\}}. The generated help
+page passes \texttt{tools::checkRd()}, and the package passes
+\texttt{R CMD check --as-cran}; the only note concerns the unavailability of
+\texttt{pandoc} on the local machine.
+
+\subsection{Cross-references}
 
 The help pages of the exported functions are linked through
 \texttt{roxygen2} \texttt{@family} tags, which generate their \emph{See Also}
@@ -686,6 +761,14 @@ printing and cannot be reproduced within a test file without relying on
 \texttt{data.table} internals. The complete suite now contains 254 passing
 assertions.
 
+The alignment of categorical levels was verified with separate scripts
+outside the test suite. They cover a factor with an unused level, both with
+and without an outcome model, and a character covariate whose first value is
+not first in alphabetical order. After the fix, the estimates coincide with
+those obtained after \texttt{droplevels()} and with those for the equivalent
+factor covariate, respectively. Corresponding regression tests have not yet
+been added to \texttt{inst/tinytest/}.
+
 \section{Simulation studies}
 
 A deterministic replication of the simulation accompanying the IAOS paper is
@@ -712,23 +795,25 @@ squared error for the overall population size and outcome total.
 
 The core fitting and prediction paths, together with the complete set of
 print and summary methods for fitted and predicted objects and their tests, are
-now in place. Development should continue with the following main steps.
+now in place. The help page of \texttt{crc\_fit()} is complete, and the
+alignment of categorical levels has been corrected. Development should
+continue with the following main steps.
 
 \begin{enumerate}
-  \item Expand the user-facing documentation. This includes
-  \texttt{crc\_fit()} and the initial documentation of
-  \texttt{predict.crc\_fit()}, with examples, details of their arguments and
-  returned objects, grouping rules, and guidance on interpretation. In
-  particular, the \texttt{misclass} argument of \texttt{crc\_fit()} requires
-  a description of the confusion-matrix format and of \texttt{true\_if}.
-  Description paragraphs added to existing documentation blocks must precede
-  their \texttt{@family} tags.
-  \item Extend \texttt{NEWS.md}, examples, and
-  vignettes, and implement the remaining progress reporting.
+  \item Expand the documentation of \texttt{predict.crc\_fit()} with details
+  of the estimators, the grouping rules, and an example. Description
+  paragraphs added to existing documentation blocks must precede their
+  \texttt{@family} tags.
+  \item Add regression tests for unused factor levels and character
+  covariates to \texttt{inst/tinytest/}.
+  \item Record the correction of the categorical-level handling in
+  \texttt{NEWS.md}.
+  \item Add vignettes, including a description of the EM algorithm, and
+  implement the remaining progress reporting.
 \end{enumerate}
 
 EM updates must follow the accompanying paper and simulation implementation.
 The next development step is to expand the user-facing documentation of
-\texttt{crc\_fit()} and \texttt{predict.crc\_fit()}.
+\texttt{predict.crc\_fit()}.
 
 \end{document}
