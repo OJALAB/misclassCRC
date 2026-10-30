@@ -1,12 +1,13 @@
 # AGENTS.md
 
-This file includes guidelines for the Codex app.
+This file includes guidelines for AI coding agents (e.g., Codex and
+Claude Code).
 
 ## Agent Role
 
 Act as an expert R developer and data scientist specializing in
 population size estimation and CRAN package development. **If and only
-if asked**, use the **StatsClaw** workflow.
+if asked**, use the **StatsClaw** workflow (if available).
 
 ## Overview of the `misclassCRC` R Package
 
@@ -33,14 +34,24 @@ The core code is included in the `R/` folder, with the following files
 - `R/parsers.R` – parsers of input data,
 - `R/model_matrices.R` – model matrices,
 - `R/preparation.R` – preparation of validated model inputs,
-- `R/initialization.R` – initialization of model parameters,
+- `R/initialization.R` – initialization of state weights and
+  capture-cell counts,
 - `R/expectation.R` – E-step of the EM algorithm,
 - `R/maximization.R` – M-step of the EM algorithm,
 - `R/outcome_likelihood.R` – likelihood function for the outcome model,
-- `R/em.R` – the EM loop.
+- `R/em.R` – the EM loop,
+- `R/print.R` – [`print()`](https://rdrr.io/r/base/print.html) methods
+  for `crc_fit`, `crc_pred`, and their summary objects,
+- `R/summary.R` – [`summary()`](https://rdrr.io/r/base/summary.html)
+  methods for `crc_fit` and `crc_pred`.
 
 `documents/package_specification.pdf` provides an overview of what has
-already been done in the package.
+already been done in the package. `documents/prediction_imputation.pdf`
+derives the imputation and prediction formulas used in `R/predict.R`,
+while `documents/initialization_suggestions.pdf` describes the
+initialization strategy. The simulation study for the package itself is
+in `simulations/`. Tests use `tinytest` and are stored in
+`inst/tinytest/`.
 
 ## Code Guidelines
 
@@ -60,7 +71,8 @@ If asked to generate code, stick to the following rules:
 - When proposing changes to the existing code, try to introduce only
   minimal and necessary changes.
 - Use the methodology that you are directly asked for or that is present
-  in `papers/`. Don’t change the methodology on your own.
+  in `papers/` or `documents/`. Don’t change the methodology on your
+  own.
 - Don’t create a file with the compiled package in the directory.
 - If not asked, don’t touch the files in `inst/tinytest/`.
 - After R CMD check, always remove the check folder and the compiled

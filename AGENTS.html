@@ -40,10 +40,10 @@
 
 <div id="agentsmd" class="section level1">
 
-<p>This file includes guidelines for the Codex app.</p>
+<p>This file includes guidelines for AI coding agents (e.g., Codex and Claude Code).</p>
 <div class="section level2">
 <h2 id="agent-role">Agent Role<a class="anchor" aria-label="anchor" href="#agent-role"></a></h2>
-<p>Act as an expert R developer and data scientist specializing in population size estimation and CRAN package development. <strong>If and only if asked</strong>, use the <strong>StatsClaw</strong> workflow.</p>
+<p>Act as an expert R developer and data scientist specializing in population size estimation and CRAN package development. <strong>If and only if asked</strong>, use the <strong>StatsClaw</strong> workflow (if available).</p>
 </div>
 <div class="section level2">
 <h2 id="overview-of-the-misclasscrc-r-package">Overview of the <code>misclassCRC</code> R Package<a class="anchor" aria-label="anchor" href="#overview-of-the-misclasscrc-r-package"></a></h2>
@@ -67,7 +67,7 @@
 <li>
 <code>R/preparation.R</code> – preparation of validated model inputs,</li>
 <li>
-<code>R/initialization.R</code> – initialization of model parameters,</li>
+<code>R/initialization.R</code> – initialization of state weights and capture-cell counts,</li>
 <li>
 <code>R/expectation.R</code> – E-step of the EM algorithm,</li>
 <li>
@@ -75,8 +75,12 @@
 <li>
 <code>R/outcome_likelihood.R</code> – likelihood function for the outcome model,</li>
 <li>
-<code>R/em.R</code> – the EM loop.</li>
-</ul><p><code>documents/package_specification.pdf</code> provides an overview of what has already been done in the package.</p>
+<code>R/em.R</code> – the EM loop,</li>
+<li>
+<code>R/print.R</code> – <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> methods for <code>crc_fit</code>, <code>crc_pred</code>, and their summary objects,</li>
+<li>
+<code>R/summary.R</code> – <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> methods for <code>crc_fit</code> and <code>crc_pred</code>.</li>
+</ul><p><code>documents/package_specification.pdf</code> provides an overview of what has already been done in the package. <code>documents/prediction_imputation.pdf</code> derives the imputation and prediction formulas used in <code>R/predict.R</code>, while <code>documents/initialization_suggestions.pdf</code> describes the initialization strategy. The simulation study for the package itself is in <code>simulations/</code>. Tests use <code>tinytest</code> and are stored in <code>inst/tinytest/</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="code-guidelines">Code Guidelines<a class="anchor" aria-label="anchor" href="#code-guidelines"></a></h2>
@@ -89,7 +93,7 @@
 <li>Always ask for permission before adding new dependencies.</li>
 <li>Use variable names that are consistent with the current names.</li>
 <li>When proposing changes to the existing code, try to introduce only minimal and necessary changes.</li>
-<li>Use the methodology that you are directly asked for or that is present in <code>papers/</code>. Don’t change the methodology on your own.</li>
+<li>Use the methodology that you are directly asked for or that is present in <code>papers/</code> or <code>documents/</code>. Don’t change the methodology on your own.</li>
 <li>Don’t create a file with the compiled package in the directory.</li>
 <li>If not asked, don’t touch the files in <code>inst/tinytest/</code>.</li>
 <li>After R CMD check, always remove the check folder and the compiled package from the directory.</li>
