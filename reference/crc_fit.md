@@ -176,9 +176,9 @@ crc_fit(
 
 - verbose:
 
-  A logical value indicating whether progress information should be
-  displayed during model fitting. The default is `FALSE`. Currently
-  unsupported.
+  A logical value indicating whether progress of the EM algorithm should
+  be displayed. If `TRUE`, the first, every tenth, and the last
+  iteration numbers are reported. The default is `FALSE`.
 
 ## Value
 
