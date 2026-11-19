@@ -107,8 +107,9 @@
 #' its relative tolerance (default `1e-8`).
 #'
 #' Unknown control elements are rejected.
-#' @param verbose A logical value indicating whether progress information should
-#' be displayed during model fitting. The default is `FALSE`. Currently unsupported.
+#' @param verbose A logical value indicating whether progress of the EM
+#' algorithm should be displayed. If `TRUE`, the first, every tenth, and the last
+#' iteration numbers are reported. The default is `FALSE`.
 #'
 #' @return
 #' An object of class `"crc_fit"`, i.e., a list with the following components:

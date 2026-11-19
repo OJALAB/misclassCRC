@@ -222,9 +222,20 @@ settings are rejected. The available settings are:
 \end{itemize}
 
 The separate logical argument \texttt{verbose} defaults to \texttt{FALSE}.
-It is validated and stored by \texttt{crc\_fit()} and accepted by the internal
-EM driver. User-facing iteration messages remain to be implemented;
-optimizer-specific tracing is not part of the public control interface.
+It is validated and stored by \texttt{crc\_fit()} and passed to
+\texttt{perform\_em\_crc()}, which implements an initial form of progress
+reporting. When \texttt{verbose = TRUE}, the number of the current EM
+iteration is reported through \texttt{message()} for the first iteration,
+every tenth iteration, and the last iteration, i.e., the iteration at which
+convergence is reached or \texttt{control\$em\$max\_iter} is exhausted. The
+first and last iterations are always reported because models without latent
+classes or misclassification typically converge within fewer than ten
+iterations. Since the last iteration is known only after the convergence
+check, each message is emitted after the corresponding iteration has been
+completed. The reporting interval is fixed at ten and is not part of the
+public interface. Messages can be suppressed with
+\texttt{suppressMessages()}. Optimizer-specific tracing is not part of the
+public control interface.
 
 \section{Expectation step}
 
@@ -809,7 +820,8 @@ continue with the following main steps.
   \item Record the correction of the categorical-level handling in
   \texttt{NEWS.md}.
   \item Add vignettes, including a description of the EM algorithm, and
-  implement the remaining progress reporting.
+  extend the initial progress reporting of \texttt{verbose}, e.g., with
+  a user-defined reporting interval or convergence diagnostics.
 \end{enumerate}
 
 EM updates must follow the accompanying paper and simulation implementation.

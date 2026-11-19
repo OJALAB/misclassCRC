@@ -135,6 +135,13 @@ perform_em_crc <- function(
 
     converged <- stable_iterations >= 3L
 
+    if (verbose) {
+      last <- converged || iter == control$em$max_iter
+      if (iter == 1L || iter %% 10L == 0L || last) {
+        message("EM iteration ", iter)
+      }
+    }
+
     previous <- current
     state_weights <- current$state_weights
     cell_counts <- current$cell_counts
